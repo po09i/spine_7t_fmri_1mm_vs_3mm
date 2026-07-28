@@ -72,33 +72,44 @@ class Figures_main:
                 underlay_data = nib.as_closest_canonical(nib.load(underlay_fname)).get_fdata()
 
             # --- Figure and gridspec ---
-            # Figure size scales with number of participant rows
-            fig_height = n_participant_rows *2
             fig_width = 7 #max paper width is 7 inches
-            fig = plt.figure(figsize=(fig_width, fig_height))
-            fig.subplots_adjust(left=0.01,right=0.90,top=0.90,bottom=0.01)
+            left, right, top, bottom = 0.01, 0.90, 0.90, 0.01
 
             # Coronal crop is (x_max-x_min) x (z_max-z_min) = 70 x 220; axial crop is
-            # 2*crop_x x 2*crop_y = 60 x 60. Both are now shown with aspect='equal' at the
-            # same column width, so their row heights must be in the same ratio as their
-            # own height/width (220/70 vs 60/60) or one of them will be letterboxed
-            # (empty space) and the two rows' left/right edges won't line up.
+            # 2*crop_x x 2*crop_y = 60 x 60. Both are shown with aspect='equal' at the same
+            # column width, so (a) their height_ratios must be in the same ratio as their
+            # own height/width, or one gets letterboxed and the two rows' left/right edges
+            # won't line up, and (b) fig_height must be picked so a height-ratio-unit's
+            # absolute size actually matches a width-ratio-unit's -- otherwise aspect='equal'
+            # still letterboxes (just equally on both rows), leaving unwanted blank margin
+            # on either side of every panel despite a small wspace/spacer.
             coronal_aspect = 220 / 70
             axial_aspect = 60 / 60
+            gap_ratio = 2.0
+            spacer_ratio = 0.1
+
             height_ratios = []
             for _ in range(n_participant_rows):
-                height_ratios += [coronal_aspect, axial_aspect, 1.0]  # coronal, axial, gap
+                height_ratios += [coronal_aspect, axial_aspect, gap_ratio]
 
             width_ratios = []
             for i in range(n_cols):
                 width_ratios += [1, 1]  # two map columns
                 if i != n_cols - 1:     # add spacer except after last participant
-                    width_ratios += [0.3]  # gap between participants
+                    width_ratios += [spacer_ratio]
+
+            col_width_units = n_cols * 2 + (n_cols - 1) * spacer_ratio
+            row_height_units = n_participant_rows * (coronal_aspect + axial_aspect + gap_ratio)
+            # Require (height of 1 row-unit) == (width of 1 column-unit), in inches.
+            fig_height = fig_width * (right - left) / col_width_units * row_height_units / (top - bottom)
+
+            fig = plt.figure(figsize=(fig_width, fig_height))
+            fig.subplots_adjust(left=left, right=right, top=top, bottom=bottom)
 
             gs = fig.add_gridspec(nrows=len(height_ratios), ncols=total_cols,
                             height_ratios=height_ratios,
                             width_ratios=width_ratios,
-                            hspace=0.01,wspace=0.01)
+                            hspace=0.01,wspace=0.002)
 
             for subj_idx, maps in enumerate(i_fnames):
                 col_idx = subj_idx % n_cols
@@ -158,8 +169,8 @@ class Figures_main:
                         # geometry (not a visual guess): midpoint between this axis's own
                         # left edge and the second map's right edge, expressed as a
                         # fraction of this axis's own width (transAxes).
-                        x_center = 1.004
-                        xmax_line = 2.008
+                        x_center = 1.001
+                        xmax_line = 2.001
                         y_top = 1.25
                         if participant_ids is not None:
                             subj_label = participant_ids[subj_idx]
@@ -175,8 +186,8 @@ class Figures_main:
 
                     # Orientation labels only for first participant
                     if subj_idx == 0 and map_idx == 0:
-                        ax_cor.text(0.05, 0.05, "L", transform=ax_cor.transAxes, color="white", fontsize=5, ha="left", va="bottom")
-                        ax_cor.text(0.95, 0.05, "R", transform=ax_cor.transAxes, color="white", fontsize=5, ha="right", va="bottom")
+                        ax_cor.text(0.05, 0.05, "L", transform=ax_cor.transAxes, color="white", fontsize=3.5, ha="left", va="bottom")
+                        ax_cor.text(0.95, 0.05, "R", transform=ax_cor.transAxes, color="white", fontsize=3.5, ha="right", va="bottom")
 
                     # --- Axial (bottom row) ---
                     row_axi = row_start + 1
@@ -207,10 +218,10 @@ class Figures_main:
                     ax_axi.axis("off")
 
                     if subj_idx == 0 and map_idx == 0:
-                        ax_axi.text(0.02, 0.5, "L", transform=ax_axi.transAxes, color="white", fontsize=5, ha="left", va="center")
-                        ax_axi.text(0.98, 0.5, "R", transform=ax_axi.transAxes, color="white", fontsize=5, ha="right", va="center")
-                        ax_axi.text(0.5, 0.98, "A", transform=ax_axi.transAxes, color="white", fontsize=5, ha="center", va="top")
-                        ax_axi.text(0.5, 0.02, "P", transform=ax_axi.transAxes, color="white", fontsize=5, ha="center", va="bottom")
+                        ax_axi.text(0.02, 0.5, "L", transform=ax_axi.transAxes, color="white", fontsize=3.5, ha="left", va="center")
+                        ax_axi.text(0.98, 0.5, "R", transform=ax_axi.transAxes, color="white", fontsize=3.5, ha="right", va="center")
+                        ax_axi.text(0.5, 0.98, "A", transform=ax_axi.transAxes, color="white", fontsize=3.5, ha="center", va="top")
+                        ax_axi.text(0.5, 0.02, "P", transform=ax_axi.transAxes, color="white", fontsize=3.5, ha="center", va="bottom")
 
             # ---- Single colorbar (both conditions share the same colormap), placed once
             # ---- in figure-fraction coordinates (independent of the participant grid) ----
