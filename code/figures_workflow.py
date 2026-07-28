@@ -80,38 +80,32 @@ fig_dir_first = os.path.join(config["raw_dir"], config["figures_dir"]["main_dir"
 os.makedirs(fig_dir_first, exist_ok=True)
 common_mask_fname = os.path.join(first_level_dir.format('glm', "").split("sub")[0], "common_mask_PAM50.nii.gz")
 
+# Compare native 3mm vs. 1mm(smooth3mm) for a single shim condition (shimSlice), rather
+# than shimBase vs shimSlice at 3mm: shimBase MOTOR 1mm data only exists for sub-099, so
+# it can't support a consistent group comparison, while shimSlice has 3mm and 1mm
+# (smooth3mm) GLM results for every subject -- and 3mm vs 1mm is this project's main axis.
+first_level_acqs = ["shimSlice+3mm", "shimSlice+1mm+sms2+smooth3mm"]
+
 i_fnames_by_runs = []
+used_ids = []
 for ID in IDs:
     i_fnames_runs = []
     for task_name in config["design_exp"]["task_names"]:
-        for acq_name in config["design_exp"]["acq_names"]:
+        for acq_name in first_level_acqs:
             tag = "task-" + task_name + "_acq-" + acq_name
-            raw_func = sorted(glob.glob(os.path.join(
-                config["raw_dir"], f'sub-{ID}', 'func', f'sub-{ID}_{tag}_*bold.nii.gz'
+            # Glob the GLM result directly (rather than checking for a matching raw BOLD
+            # file first): derived acquisitions like +smooth3mm have no raw BOLD of their
+            # own. Sorted so that, when a subject has multiple runs (e.g. sub-099), only
+            # the first (run-01) is used -- every subject then contributes the same 2 columns.
+            matches = sorted(glob.glob(os.path.join(
+                first_level_dir.format("glm", ID), tag,
+                f"*{tag}*trial_RH-rest*inTemplate.nii.gz"
             )))
-            if not raw_func:
-                continue
-            if len(raw_func) == 2 and tag == "task-motor_acq-shimSlice+3mm":
-                for fname in raw_func:
-                    match = re.search(r"_?(run-\d+)", fname)
-                    run_name = match.group(1)
-                    matches = glob.glob(os.path.join(
-                        first_level_dir.format("glm", ID), tag,
-                        f"*{tag}*{run_name}*trial_RH-rest*inTemplate.nii.gz"
-                    ))
-                    if matches:
-                        i_fnames_runs.append(matches[0])
-            else:
-                match = re.search(r"_?(run-\d+)", raw_func[0])
-                run_name = match.group(1) if match else ""
-                matches = glob.glob(os.path.join(
-                    first_level_dir.format("glm", ID), tag,
-                    f"*{tag}*{run_name}*trial_RH-rest*inTemplate.nii.gz"
-                ))
-                if matches:
-                    i_fnames_runs.append(matches[0])
+            if matches:
+                i_fnames_runs.append(matches[0])
     if i_fnames_runs:
         i_fnames_by_runs.append(i_fnames_runs)
+        used_ids.append(ID)
 
 try:
     figures.plot_first_level_maps(
@@ -119,9 +113,9 @@ try:
         output_fname=os.path.join(fig_dir_first, f"first_level_task_by_runs_n{len(i_fnames_by_runs)}.png"),
         background_fname=os.path.join(path_code, "template", config["PAM50_t2"]),
         mask_fname=common_mask_fname,
-        titles=["shimBase", "shimSlice", "shimSlice"],
+        titles=["3mm", "1mm smoothed"],
         task_name=tag,
-        participant_ids=IDs,
+        participant_ids=used_ids,
         verbose=True,
         redo=redo)
 except Exception as e:
@@ -618,7 +612,7 @@ for task in df_tsnr["task"].unique():
             _triplet_fig(ax, d, [acq1, acq2, acq3], [0, 1, 2], common_all, common_23, pstr23,
                          "Mean tSNR within SC mask",
                          f"tSNR: 1mm vs 3mm  ({shim_label}, task-{task})\nn={len(common_23)} paired")
-            fig.tight_layout(); fig.savefig(fig_path, dpi=150, bbox_inches="tight"); plt.close(fig)
+            fig.tight_layout(); fig.savefig(fig_path, dpi=300, bbox_inches="tight"); plt.close(fig)
             print(f"Saved: {fig_path}", flush=True)
         except Exception as e:
             print(f"WARNING: tSNR triplet ({shim_label} task-{task}): {e}", flush=True)
@@ -645,7 +639,7 @@ if not bold_df.empty:
                     fig, ax = plt.subplots(figsize=(4, 4.5))
                     _triplet_fig(ax, d, [acq1, acq2, acq3], [0, 1, 2], common_all, common_23, pstr23, ylabel,
                                  f"{metric}: 1mm vs 3mm  ({shim_label}, task-{task})\nn={len(common_23)} paired")
-                    fig.tight_layout(); fig.savefig(fig_path, dpi=150, bbox_inches="tight"); plt.close(fig)
+                    fig.tight_layout(); fig.savefig(fig_path, dpi=300, bbox_inches="tight"); plt.close(fig)
                     print(f"Saved: {fig_path}", flush=True)
                 except Exception as e:
                     print(f"WARNING: {metric} triplet ({shim_label} task-{task}): {e}", flush=True)
@@ -702,7 +696,7 @@ if not mi_df.empty and (not os.path.exists(fig_path_4) or redo):
         ax.set_title("MI with T2*w: shimBase vs shimSlice\n(3mm and 1mm acquisitions)", fontsize=9)
         ax.set_xlim(-0.6, 4.1)
         ax.spines["top"].set_visible(False); ax.spines["right"].set_visible(False)
-        fig.tight_layout(); fig.savefig(fig_path_4, dpi=150, bbox_inches="tight"); plt.close(fig)
+        fig.tight_layout(); fig.savefig(fig_path_4, dpi=300, bbox_inches="tight"); plt.close(fig)
         print(f"Saved: {fig_path_4}", flush=True)
     except Exception as e:
         print(f"WARNING: MI 4-condition figure failed: {e}", flush=True)
@@ -775,7 +769,7 @@ for snr_metric, col_name, ylabel in [
         ax.set_title(f"{snr_metric}: shimBase vs shimSlice\n(3mm and 1mm acquisitions, REST)", fontsize=9)
         ax.set_xlim(-0.6, 4.1)
         ax.spines["top"].set_visible(False); ax.spines["right"].set_visible(False)
-        fig.tight_layout(); fig.savefig(fig_path, dpi=150, bbox_inches="tight"); plt.close(fig)
+        fig.tight_layout(); fig.savefig(fig_path, dpi=300, bbox_inches="tight"); plt.close(fig)
         print(f"Saved: {fig_path}", flush=True)
     except Exception as e:
         print(f"WARNING: {snr_metric} 4-condition figure failed: {e}", flush=True)

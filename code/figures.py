@@ -41,7 +41,7 @@ class Figures_main:
         os.makedirs(self.first_level_fig,exist_ok=True)
         os.makedirs(self.second_level_fig,exist_ok=True)
      
-    def plot_first_level_maps(self, i_fnames=None, output_fname=None,titles=["shimBase","shimSlice"],cmap="autumn",stat_min=1.6, stat_max=4,background_fname=None,mask_fname=None, underlay_fname=None,task_name=None,plot_mip=True, participant_ids=None, verbose=True, redo=False,n_cols=5):
+    def plot_first_level_maps(self, i_fnames=None, output_fname=None,titles=["3mm","1mm smoothed"],cmap="autumn",stat_min=1.6, stat_max=4,background_fname=None,mask_fname=None, underlay_fname=None,task_name=None,plot_mip=True, participant_ids=None, verbose=True, redo=False,n_cols=5):
         """
         Plot first-level statistical maps for multiple participants and contrasts in a grid layout.
 
@@ -57,7 +57,7 @@ class Figures_main:
             n_participant_rows = (n_subjects + n_cols - 1) // n_cols  # number of participant rows
             n_rows = n_participant_rows * 3  # coronal, axial, gap
             n_actual_cols = min(n_subjects, n_cols)
-            total_cols = (n_cols * 4) - 1  # 2 maps + 1 spacer per participant expect for the 5th one
+            total_cols = (n_cols * 3) - 1  # 2 maps + 1 spacer per participant except for the last one
 
             # --- Load template, mask, and underlay ---
             template_img = nib.as_closest_canonical(nib.load(background_fname))
@@ -72,41 +72,52 @@ class Figures_main:
                 underlay_data = nib.as_closest_canonical(nib.load(underlay_fname)).get_fdata()
 
             # --- Figure and gridspec ---
-            # Figure size scales with number of participant rows
-            fig_height = n_participant_rows *2
             fig_width = 7 #max paper width is 7 inches
-            fig = plt.figure(figsize=(fig_width, fig_height))
-            fig.subplots_adjust(left=0.01,right=0.99,top=0.94,bottom=0.01)
+            left, right, top, bottom = 0.01, 0.90, 0.90, 0.01
+
+            # Coronal crop is (x_max-x_min) x (z_max-z_min) = 70 x 220; axial crop is
+            # 2*crop_x x 2*crop_y = 60 x 60. Both are shown with aspect='equal' at the same
+            # column width, so (a) their height_ratios must be in the same ratio as their
+            # own height/width, or one gets letterboxed and the two rows' left/right edges
+            # won't line up, and (b) fig_height must be picked so a height-ratio-unit's
+            # absolute size actually matches a width-ratio-unit's -- otherwise aspect='equal'
+            # still letterboxes (just equally on both rows), leaving unwanted blank margin
+            # on either side of every panel despite a small wspace/spacer.
+            coronal_aspect = 220 / 70
+            axial_aspect = 60 / 60
+            gap_ratio = 2.0
+            spacer_ratio = 0.1
 
             height_ratios = []
             for _ in range(n_participant_rows):
-                height_ratios += [6.5, 2.7, 3]  # coronal, axial, gap
-            
+                height_ratios += [coronal_aspect, axial_aspect, gap_ratio]
+
             width_ratios = []
             for i in range(n_cols):
-                width_ratios += [1, 1, 1]  # three map columns
+                width_ratios += [1, 1]  # two map columns
                 if i != n_cols - 1:     # add spacer except after last participant
-                    width_ratios += [0.2]  # spacer column smaller
+                    width_ratios += [spacer_ratio]
+
+            col_width_units = n_cols * 2 + (n_cols - 1) * spacer_ratio
+            row_height_units = n_participant_rows * (coronal_aspect + axial_aspect + gap_ratio)
+            # Require (height of 1 row-unit) == (width of 1 column-unit), in inches.
+            fig_height = fig_width * (right - left) / col_width_units * row_height_units / (top - bottom)
+
+            fig = plt.figure(figsize=(fig_width, fig_height))
+            fig.subplots_adjust(left=left, right=right, top=top, bottom=bottom)
 
             gs = fig.add_gridspec(nrows=len(height_ratios), ncols=total_cols,
-                            height_ratios=height_ratios, 
+                            height_ratios=height_ratios,
                             width_ratios=width_ratios,
-                            hspace=0.01,wspace=0.1)
+                            hspace=0.01,wspace=0.002)
 
             for subj_idx, maps in enumerate(i_fnames):
-                if len(maps) == 2:
-                    maps=maps+ [None]
-
                 col_idx = subj_idx % n_cols
-                row_participant = subj_idx // n_cols 
+                row_participant = subj_idx // n_cols
                 row_start = (subj_idx // n_cols) * 3
-                col_start = (subj_idx % n_cols) * 4   # 3 for maps, 1 for spacer (subj_idx % n_cols) * 3   
+                col_start = (subj_idx % n_cols) * 3   # 2 for maps, 1 for spacer
 
                 for map_idx, i_fname in enumerate(maps):
-                    if map_idx == 0:
-                        cmap = "winter"
-                    else:
-                        cmap = "autumn"
                     if i_fname is None:
                         ax = fig.add_subplot(gs[row_start, col_start + map_idx])
                         ax.axis("off")   # empty panel
@@ -123,6 +134,15 @@ class Figures_main:
             
                     stat_thresh = np.where(statmap_data > stat_min, statmap_data, 0)
 
+                    # Axial slice below: its anatomical background is the geometric mid-point
+                    # of the (PAM50) Z axis -- not an activation peak or anatomical landmark,
+                    # just a fixed, consistent level across subjects/conditions. But (when
+                    # plot_mip=True, the default) the BOLD overlay itself is a max-intensity
+                    # projection across the *entire* Z axis (see mip_axi below), same as the
+                    # coronal view -- so it is not specific to this single slice, and no
+                    # z-position indicator is drawn on the coronal view for it.
+                    z_slice = statmap_data.shape[2] // 2 if plot_mip else 260
+
                     # --- Coronal (top row) ---
                     if plot_mip:
                         y_slice = statmap_data.shape[1] // 2
@@ -137,42 +157,40 @@ class Figures_main:
                     template_cor = template_data[x_min:x_max, y_slice, z_min:z_max].T
 
                     ax_cor = fig.add_subplot(gs[row_start, col_start + map_idx])
-                    ax_cor.imshow(template_cor, cmap="gray", origin="lower",aspect='auto')
+                    ax_cor.imshow(template_cor, cmap="gray", origin="lower",aspect='equal')
                     if underlay_data is not None:
-                        ax_cor.imshow(underlay_data[x_min:x_max, y_slice, z_min:z_max].T, cmap="gray", origin="lower",aspect='auto')
-                    
-                    ax_cor.imshow(mip_cor, cmap=cmap, origin="lower", vmin=stat_min, vmax=stat_max,aspect='auto')
-                    ax_cor.axvline(x=(x_max-x_min)/2, color="white", linestyle="--", linewidth=0.5, alpha=0.6)
+                        ax_cor.imshow(underlay_data[x_min:x_max, y_slice, z_min:z_max].T, cmap="gray", origin="lower",aspect='equal')
+
+                    ax_cor.imshow(mip_cor, cmap=cmap, origin="lower", vmin=stat_min, vmax=stat_max,aspect='equal')
                     ax_cor.axis("off")
 
                     if map_idx == 0:
-                        x_center = 1.7 
-                        y_top = 1.2
+                        # Center of the 2-map block, computed from the actual gridspec
+                        # geometry (not a visual guess): midpoint between this axis's own
+                        # left edge and the second map's right edge, expressed as a
+                        # fraction of this axis's own width (transAxes).
+                        x_center = 1.001
+                        xmax_line = 2.001
+                        y_top = 1.25
                         if participant_ids is not None:
                             subj_label = participant_ids[subj_idx]
                         else:
                             subj_label = subj_idx + 1
-                        ax_cor.text(x_center, y_top, f"ID #{subj_label}", ha='center', va='bottom', fontsize=8, fontweight='black', transform=ax_cor.transAxes, fontname="Arial")
+                        ax_cor.text(x_center, y_top, f"sub-{subj_label}", ha='center', va='bottom', fontsize=7, fontweight='black', transform=ax_cor.transAxes, fontname="Arial")
                         line_y = 1.2
-                        ax_cor.hlines(y=line_y, xmin=0.15, xmax=3, colors='black', linewidth=0.8, transform=ax_cor.transAxes, clip_on=False)
-        
-                        ax_cor.set_title(titles[0], color="black",  fontsize=6, fontname="Arial")
+                        ax_cor.hlines(y=line_y, xmin=0, xmax=xmax_line, colors='black', linewidth=0.8, transform=ax_cor.transAxes, clip_on=False)
+
+                        ax_cor.set_title(titles[0], color="black",  fontsize=5, fontname="Arial", y=0.97)
                     if map_idx == 1:
-                        ax_cor.set_title(f"{titles[1]}\nrun-01", color="black",  fontsize=6, fontname="Arial",y=0.94)
-                    if map_idx == 2 and i_fname != None:
-                        ax_cor.set_title(f"{titles[2]}\nrun-02", color="black",  fontsize=6, fontname="Arial",y=0.94)
+                        ax_cor.set_title(titles[1], color="black",  fontsize=5, fontname="Arial", y=0.97)
 
                     # Orientation labels only for first participant
                     if subj_idx == 0 and map_idx == 0:
-                        ax_cor.text(0.05, 0.05, "L", transform=ax_cor.transAxes, color="white", fontsize=5, ha="left", va="bottom")
-                        ax_cor.text(0.95, 0.05, "R", transform=ax_cor.transAxes, color="white", fontsize=5, ha="right", va="bottom")
+                        ax_cor.text(0.05, 0.05, "L", transform=ax_cor.transAxes, color="white", fontsize=3.5, ha="left", va="bottom")
+                        ax_cor.text(0.95, 0.05, "R", transform=ax_cor.transAxes, color="white", fontsize=3.5, ha="right", va="bottom")
 
                     # --- Axial (bottom row) ---
                     row_axi = row_start + 1
-                    if plot_mip:
-                        z_slice = statmap_data.shape[2] // 2
-                    else:
-                        z_slice = 260
 
                     # Crop for smaller axial view
                     crop_x = 30
@@ -192,54 +210,38 @@ class Figures_main:
                     mip_axi = np.where(mip_axi > stat_min, mip_axi, np.nan)
 
                     ax_axi = fig.add_subplot(gs[row_start + 1, col_start + map_idx])
-                    ax_axi.imshow(template_axi, cmap="gray", origin="lower",aspect='auto')
+                    ax_axi.imshow(template_axi, cmap="gray", origin="lower",aspect='equal')
                     if underlay_data is not None:
                         ax_axi.imshow(underlay_data[x_min:x_max, y_min:y_max, z_slice].T,
                                     cmap="gray", alpha=0.3, origin="lower")
-                    ax_axi.imshow(mip_axi, cmap=cmap, origin="lower", vmin=stat_min, vmax=stat_max,aspect='auto')
+                    ax_axi.imshow(mip_axi, cmap=cmap, origin="lower", vmin=stat_min, vmax=stat_max,aspect='equal')
                     ax_axi.axis("off")
 
                     if subj_idx == 0 and map_idx == 0:
-                        ax_axi.text(0.02, 0.5, "L", transform=ax_axi.transAxes, color="white", fontsize=5, ha="left", va="center")
-                        ax_axi.text(0.98, 0.5, "R", transform=ax_axi.transAxes, color="white", fontsize=5, ha="right", va="center")
-                        ax_axi.text(0.5, 0.98, "A", transform=ax_axi.transAxes, color="white", fontsize=5, ha="center", va="top")
-                        ax_axi.text(0.5, 0.02, "P", transform=ax_axi.transAxes, color="white", fontsize=5, ha="center", va="bottom")
-                    
-                    # ---- Add colorbar only for the first participant and first map -----
-                    gap_col_idx = 2
-                    row_for_cbar = 0
-                    cbar_ax = fig.add_subplot(gs[row_for_cbar, gap_col_idx])
-                    cbar_ax.axis("off")
+                        ax_axi.text(0.02, 0.5, "L", transform=ax_axi.transAxes, color="white", fontsize=3.5, ha="left", va="center")
+                        ax_axi.text(0.98, 0.5, "R", transform=ax_axi.transAxes, color="white", fontsize=3.5, ha="right", va="center")
+                        ax_axi.text(0.5, 0.98, "A", transform=ax_axi.transAxes, color="white", fontsize=3.5, ha="center", va="top")
+                        ax_axi.text(0.5, 0.02, "P", transform=ax_axi.transAxes, color="white", fontsize=3.5, ha="center", va="bottom")
 
-                    # positions of the two colorbars
-                    pos_winter = [14.45, -3.8, 0.3, 0.8]
-                    pos_autumn = [14.80, -3.8, 0.3, 0.8]
+            # ---- Single colorbar (both conditions share the same colormap), placed once
+            # ---- in figure-fraction coordinates (independent of the participant grid) ----
+            ax_cbar = fig.add_axes([0.93, 0.65, 0.025, 0.15])
+            norm = plt.Normalize(vmin=stat_min, vmax=stat_max)
+            sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+            sm.set_array([])
 
-                    ax_winter = cbar_ax.inset_axes(pos_winter)
-                    ax_autumn = cbar_ax.inset_axes(pos_autumn)
+            cbar = fig.colorbar(sm, cax=ax_cbar)
+            cbar.ax.set_yticks([])
+            cbar.ax.set_frame_on(False)
 
-                    norm = plt.Normalize(vmin=stat_min, vmax=stat_max)
-
-                    sm_winter = plt.cm.ScalarMappable(cmap="winter", norm=norm)
-                    sm_winter.set_array([])
-
-                    sm_autumn = plt.cm.ScalarMappable(cmap="autumn", norm=norm)
-                    sm_autumn.set_array([])
-
-                    cbar_winter = fig.colorbar(sm_winter, cax=ax_winter)
-                    cbar_autumn = fig.colorbar(sm_autumn, cax=ax_autumn)
-
-                    for cbar in [cbar_winter, cbar_autumn]:
-                        cbar.ax.set_yticks([])
-                        cbar.ax.set_frame_on(False)
-
-                    cbar_winter.ax.text(-1.55, 0.5, f"z-score (uncorr)",rotation=90, fontsize=6,va="center", ha="right", transform=cbar.ax.transAxes)
-                    cbar_winter.ax.text(0.5, -0.1, f"{stat_min:.1f}", fontsize=6,va="center", ha="right", transform=cbar.ax.transAxes)
-                    cbar_winter.ax.text(0.5, 1.1, f"{stat_max:.1f}", fontsize=6, va="center", ha="right", transform=cbar.ax.transAxes)
-                    
+            # Label sits above the colorbar (horizontal, not rotated) so it can't collide
+            # with the last participant's title, regardless of figure width/subject count.
+            cbar.ax.text(0.5, 1.3, "z-score\n(uncorr)", fontsize=6, va="bottom", ha="center", transform=cbar.ax.transAxes)
+            cbar.ax.text(0.5, -0.1, f"{stat_min:.1f}", fontsize=6,va="center", ha="right", transform=cbar.ax.transAxes)
+            cbar.ax.text(0.5, 1.1, f"{stat_max:.1f}", fontsize=6, va="center", ha="right", transform=cbar.ax.transAxes)
 
             # --- Save figure ---
-            fig.savefig(output_fname, dpi=300)
+            fig.savefig(output_fname, dpi=600)
             plt.close(fig)
         
         else:
@@ -352,7 +354,7 @@ class Figures_main:
                 n_maps=n_maps
             )
 
-            plt.savefig(output_fname, transparent=True, dpi=300)
+            plt.savefig(output_fname, transparent=True, dpi=600)
             plt.close(fig)
 
         return output_fname
@@ -453,7 +455,7 @@ class Figures_main:
                         ax.set_title(titles[col], color="black", fontweight='bold',
                                     fontsize=9, fontname="Arial")
 
-            plt.savefig(output_fname, transparent=True, dpi=300)
+            plt.savefig(output_fname, transparent=True, dpi=600)
             plt.close(fig)
 
         return output_fname
@@ -625,7 +627,7 @@ class Figures_main:
 
             plt.tight_layout()
 
-            plt.savefig(output_fname,transparent=True, dpi=300)
+            plt.savefig(output_fname,transparent=True, dpi=600)
             plt.close(fig)
         
         return output_fname
@@ -695,7 +697,7 @@ class Figures_main:
 
             plt.tight_layout()
 
-            plt.savefig(output_fname,transparent=True, dpi=300)
+            plt.savefig(output_fname,transparent=True, dpi=600)
             plt.close(fig)
         
         return output_fname
@@ -907,7 +909,7 @@ class Figures_main:
             
             # Save the figure if requested
             plt.tight_layout(pad=0.1)
-            plt.savefig(output_fname, dpi=300, transparent=True)
+            plt.savefig(output_fname, dpi=600, transparent=True)
             plt.close()
         
         return output_fname
@@ -1052,6 +1054,6 @@ class Figures_main:
 
             fig.subplots_adjust(wspace=0.05, hspace=0.05,
                                 left=0.01, right=0.99, top=0.93, bottom=0.01)
-            plt.savefig(output_fname, dpi=300, transparent=True, bbox_inches='tight')
+            plt.savefig(output_fname, dpi=600, transparent=True, bbox_inches='tight')
             plt.close()
 
