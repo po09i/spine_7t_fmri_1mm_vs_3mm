@@ -612,7 +612,7 @@ for task in df_tsnr["task"].unique():
             _triplet_fig(ax, d, [acq1, acq2, acq3], [0, 1, 2], common_all, common_23, pstr23,
                          "Mean tSNR within SC mask",
                          f"tSNR: 1mm vs 3mm  ({shim_label}, task-{task})\nn={len(common_23)} paired")
-            fig.tight_layout(); fig.savefig(fig_path, dpi=150, bbox_inches="tight"); plt.close(fig)
+            fig.tight_layout(); fig.savefig(fig_path, dpi=300, bbox_inches="tight"); plt.close(fig)
             print(f"Saved: {fig_path}", flush=True)
         except Exception as e:
             print(f"WARNING: tSNR triplet ({shim_label} task-{task}): {e}", flush=True)
@@ -639,7 +639,7 @@ if not bold_df.empty:
                     fig, ax = plt.subplots(figsize=(4, 4.5))
                     _triplet_fig(ax, d, [acq1, acq2, acq3], [0, 1, 2], common_all, common_23, pstr23, ylabel,
                                  f"{metric}: 1mm vs 3mm  ({shim_label}, task-{task})\nn={len(common_23)} paired")
-                    fig.tight_layout(); fig.savefig(fig_path, dpi=150, bbox_inches="tight"); plt.close(fig)
+                    fig.tight_layout(); fig.savefig(fig_path, dpi=300, bbox_inches="tight"); plt.close(fig)
                     print(f"Saved: {fig_path}", flush=True)
                 except Exception as e:
                     print(f"WARNING: {metric} triplet ({shim_label} task-{task}): {e}", flush=True)
@@ -696,7 +696,7 @@ if not mi_df.empty and (not os.path.exists(fig_path_4) or redo):
         ax.set_title("MI with T2*w: shimBase vs shimSlice\n(3mm and 1mm acquisitions)", fontsize=9)
         ax.set_xlim(-0.6, 4.1)
         ax.spines["top"].set_visible(False); ax.spines["right"].set_visible(False)
-        fig.tight_layout(); fig.savefig(fig_path_4, dpi=150, bbox_inches="tight"); plt.close(fig)
+        fig.tight_layout(); fig.savefig(fig_path_4, dpi=300, bbox_inches="tight"); plt.close(fig)
         print(f"Saved: {fig_path_4}", flush=True)
     except Exception as e:
         print(f"WARNING: MI 4-condition figure failed: {e}", flush=True)
@@ -769,7 +769,7 @@ for snr_metric, col_name, ylabel in [
         ax.set_title(f"{snr_metric}: shimBase vs shimSlice\n(3mm and 1mm acquisitions, REST)", fontsize=9)
         ax.set_xlim(-0.6, 4.1)
         ax.spines["top"].set_visible(False); ax.spines["right"].set_visible(False)
-        fig.tight_layout(); fig.savefig(fig_path, dpi=150, bbox_inches="tight"); plt.close(fig)
+        fig.tight_layout(); fig.savefig(fig_path, dpi=300, bbox_inches="tight"); plt.close(fig)
         print(f"Saved: {fig_path}", flush=True)
     except Exception as e:
         print(f"WARNING: {snr_metric} 4-condition figure failed: {e}", flush=True)

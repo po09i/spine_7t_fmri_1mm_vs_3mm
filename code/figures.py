@@ -78,20 +78,27 @@ class Figures_main:
             fig = plt.figure(figsize=(fig_width, fig_height))
             fig.subplots_adjust(left=0.01,right=0.90,top=0.90,bottom=0.01)
 
+            # Coronal crop is (x_max-x_min) x (z_max-z_min) = 70 x 220; axial crop is
+            # 2*crop_x x 2*crop_y = 60 x 60. Both are now shown with aspect='equal' at the
+            # same column width, so their row heights must be in the same ratio as their
+            # own height/width (220/70 vs 60/60) or one of them will be letterboxed
+            # (empty space) and the two rows' left/right edges won't line up.
+            coronal_aspect = 220 / 70
+            axial_aspect = 60 / 60
             height_ratios = []
             for _ in range(n_participant_rows):
-                height_ratios += [6.5, 2.7, 3]  # coronal, axial, gap
+                height_ratios += [coronal_aspect, axial_aspect, 1.0]  # coronal, axial, gap
 
             width_ratios = []
             for i in range(n_cols):
                 width_ratios += [1, 1]  # two map columns
                 if i != n_cols - 1:     # add spacer except after last participant
-                    width_ratios += [0.2]  # spacer column smaller
+                    width_ratios += [0.3]  # gap between participants
 
             gs = fig.add_gridspec(nrows=len(height_ratios), ncols=total_cols,
                             height_ratios=height_ratios,
                             width_ratios=width_ratios,
-                            hspace=0.01,wspace=0.1)
+                            hspace=0.01,wspace=0.01)
 
             for subj_idx, maps in enumerate(i_fnames):
                 col_idx = subj_idx % n_cols
@@ -151,20 +158,20 @@ class Figures_main:
                         # geometry (not a visual guess): midpoint between this axis's own
                         # left edge and the second map's right edge, expressed as a
                         # fraction of this axis's own width (transAxes).
-                        x_center = 1.04
-                        xmax_line = 2.08
+                        x_center = 1.004
+                        xmax_line = 2.008
                         y_top = 1.25
                         if participant_ids is not None:
                             subj_label = participant_ids[subj_idx]
                         else:
                             subj_label = subj_idx + 1
-                        ax_cor.text(x_center, y_top, f"sub-{subj_label}", ha='center', va='bottom', fontsize=8, fontweight='black', transform=ax_cor.transAxes, fontname="Arial")
+                        ax_cor.text(x_center, y_top, f"sub-{subj_label}", ha='center', va='bottom', fontsize=7, fontweight='black', transform=ax_cor.transAxes, fontname="Arial")
                         line_y = 1.2
                         ax_cor.hlines(y=line_y, xmin=0, xmax=xmax_line, colors='black', linewidth=0.8, transform=ax_cor.transAxes, clip_on=False)
 
-                        ax_cor.set_title(titles[0], color="black",  fontsize=6, fontname="Arial", y=0.97)
+                        ax_cor.set_title(titles[0], color="black",  fontsize=5, fontname="Arial", y=0.97)
                     if map_idx == 1:
-                        ax_cor.set_title(titles[1], color="black",  fontsize=6, fontname="Arial", y=0.97)
+                        ax_cor.set_title(titles[1], color="black",  fontsize=5, fontname="Arial", y=0.97)
 
                     # Orientation labels only for first participant
                     if subj_idx == 0 and map_idx == 0:
@@ -223,7 +230,7 @@ class Figures_main:
             cbar.ax.text(0.5, 1.1, f"{stat_max:.1f}", fontsize=6, va="center", ha="right", transform=cbar.ax.transAxes)
 
             # --- Save figure ---
-            fig.savefig(output_fname, dpi=300)
+            fig.savefig(output_fname, dpi=600)
             plt.close(fig)
         
         else:
@@ -336,7 +343,7 @@ class Figures_main:
                 n_maps=n_maps
             )
 
-            plt.savefig(output_fname, transparent=True, dpi=300)
+            plt.savefig(output_fname, transparent=True, dpi=600)
             plt.close(fig)
 
         return output_fname
@@ -437,7 +444,7 @@ class Figures_main:
                         ax.set_title(titles[col], color="black", fontweight='bold',
                                     fontsize=9, fontname="Arial")
 
-            plt.savefig(output_fname, transparent=True, dpi=300)
+            plt.savefig(output_fname, transparent=True, dpi=600)
             plt.close(fig)
 
         return output_fname
@@ -609,7 +616,7 @@ class Figures_main:
 
             plt.tight_layout()
 
-            plt.savefig(output_fname,transparent=True, dpi=300)
+            plt.savefig(output_fname,transparent=True, dpi=600)
             plt.close(fig)
         
         return output_fname
@@ -679,7 +686,7 @@ class Figures_main:
 
             plt.tight_layout()
 
-            plt.savefig(output_fname,transparent=True, dpi=300)
+            plt.savefig(output_fname,transparent=True, dpi=600)
             plt.close(fig)
         
         return output_fname
@@ -891,7 +898,7 @@ class Figures_main:
             
             # Save the figure if requested
             plt.tight_layout(pad=0.1)
-            plt.savefig(output_fname, dpi=300, transparent=True)
+            plt.savefig(output_fname, dpi=600, transparent=True)
             plt.close()
         
         return output_fname
@@ -1036,6 +1043,6 @@ class Figures_main:
 
             fig.subplots_adjust(wspace=0.05, hspace=0.05,
                                 left=0.01, right=0.99, top=0.93, bottom=0.01)
-            plt.savefig(output_fname, dpi=300, transparent=True, bbox_inches='tight')
+            plt.savefig(output_fname, dpi=600, transparent=True, bbox_inches='tight')
             plt.close()
 
