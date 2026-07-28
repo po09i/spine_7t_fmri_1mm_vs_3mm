@@ -162,9 +162,9 @@ class Figures_main:
                         line_y = 1.2
                         ax_cor.hlines(y=line_y, xmin=0, xmax=xmax_line, colors='black', linewidth=0.8, transform=ax_cor.transAxes, clip_on=False)
 
-                        ax_cor.set_title(titles[0], color="black",  fontsize=6, fontname="Arial", y=1.02)
+                        ax_cor.set_title(titles[0], color="black",  fontsize=6, fontname="Arial", y=0.97)
                     if map_idx == 1:
-                        ax_cor.set_title(titles[1], color="black",  fontsize=6, fontname="Arial", y=1.02)
+                        ax_cor.set_title(titles[1], color="black",  fontsize=6, fontname="Arial", y=0.97)
 
                     # Orientation labels only for first participant
                     if subj_idx == 0 and map_idx == 0:
