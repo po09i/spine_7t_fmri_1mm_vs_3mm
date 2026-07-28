@@ -147,7 +147,12 @@ class Figures_main:
                     ax_cor.axis("off")
 
                     if map_idx == 0:
-                        x_center = 1.15
+                        # Center of the 2-map block, computed from the actual gridspec
+                        # geometry (not a visual guess): midpoint between this axis's own
+                        # left edge and the second map's right edge, expressed as a
+                        # fraction of this axis's own width (transAxes).
+                        x_center = 1.04
+                        xmax_line = 2.08
                         y_top = 1.25
                         if participant_ids is not None:
                             subj_label = participant_ids[subj_idx]
@@ -155,7 +160,7 @@ class Figures_main:
                             subj_label = subj_idx + 1
                         ax_cor.text(x_center, y_top, f"sub-{subj_label}", ha='center', va='bottom', fontsize=8, fontweight='black', transform=ax_cor.transAxes, fontname="Arial")
                         line_y = 1.2
-                        ax_cor.hlines(y=line_y, xmin=0.15, xmax=2.3, colors='black', linewidth=0.8, transform=ax_cor.transAxes, clip_on=False)
+                        ax_cor.hlines(y=line_y, xmin=0, xmax=xmax_line, colors='black', linewidth=0.8, transform=ax_cor.transAxes, clip_on=False)
 
                         ax_cor.set_title(titles[0], color="black",  fontsize=6, fontname="Arial", y=1.02)
                     if map_idx == 1:
