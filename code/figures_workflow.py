@@ -113,7 +113,7 @@ try:
         output_fname=os.path.join(fig_dir_first, f"first_level_task_by_runs_n{len(i_fnames_by_runs)}.png"),
         background_fname=os.path.join(path_code, "template", config["PAM50_t2"]),
         mask_fname=common_mask_fname,
-        titles=["3mm", "1mm (smooth3mm)"],
+        titles=["3mm", "1mm smoothed"],
         task_name=tag,
         participant_ids=used_ids,
         verbose=True,

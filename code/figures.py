@@ -41,7 +41,7 @@ class Figures_main:
         os.makedirs(self.first_level_fig,exist_ok=True)
         os.makedirs(self.second_level_fig,exist_ok=True)
      
-    def plot_first_level_maps(self, i_fnames=None, output_fname=None,titles=["3mm","1mm (smooth3mm)"],cmap="autumn",stat_min=1.6, stat_max=4,background_fname=None,mask_fname=None, underlay_fname=None,task_name=None,plot_mip=True, participant_ids=None, verbose=True, redo=False,n_cols=5):
+    def plot_first_level_maps(self, i_fnames=None, output_fname=None,titles=["3mm","1mm smoothed"],cmap="autumn",stat_min=1.6, stat_max=4,background_fname=None,mask_fname=None, underlay_fname=None,task_name=None,plot_mip=True, participant_ids=None, verbose=True, redo=False,n_cols=5):
         """
         Plot first-level statistical maps for multiple participants and contrasts in a grid layout.
 
@@ -76,7 +76,7 @@ class Figures_main:
             fig_height = n_participant_rows *2
             fig_width = 7 #max paper width is 7 inches
             fig = plt.figure(figsize=(fig_width, fig_height))
-            fig.subplots_adjust(left=0.01,right=0.90,top=0.86,bottom=0.01)
+            fig.subplots_adjust(left=0.01,right=0.90,top=0.90,bottom=0.01)
 
             height_ratios = []
             for _ in range(n_participant_rows):
@@ -116,6 +116,11 @@ class Figures_main:
             
                     stat_thresh = np.where(statmap_data > stat_min, statmap_data, 0)
 
+                    # Axial slice shown below: the geometric mid-point of the (PAM50) Z axis,
+                    # not an activation peak or anatomical landmark -- just a fixed, consistent
+                    # level across subjects/conditions. Indicated on the coronal view below.
+                    z_slice = statmap_data.shape[2] // 2 if plot_mip else 260
+
                     # --- Coronal (top row) ---
                     if plot_mip:
                         y_slice = statmap_data.shape[1] // 2
@@ -133,9 +138,12 @@ class Figures_main:
                     ax_cor.imshow(template_cor, cmap="gray", origin="lower",aspect='auto')
                     if underlay_data is not None:
                         ax_cor.imshow(underlay_data[x_min:x_max, y_slice, z_min:z_max].T, cmap="gray", origin="lower",aspect='auto')
-                    
+
                     ax_cor.imshow(mip_cor, cmap=cmap, origin="lower", vmin=stat_min, vmax=stat_max,aspect='auto')
-                    ax_cor.axvline(x=(x_max-x_min)/2, color="white", linestyle="--", linewidth=0.5, alpha=0.6)
+                    # Indicate where the axial slice below is taken from
+                    axi_row = z_slice - z_min
+                    if 0 <= axi_row < template_cor.shape[0]:
+                        ax_cor.axhline(y=axi_row, color="white", linestyle="--", linewidth=0.5, alpha=0.6)
                     ax_cor.axis("off")
 
                     if map_idx == 0:
@@ -160,10 +168,6 @@ class Figures_main:
 
                     # --- Axial (bottom row) ---
                     row_axi = row_start + 1
-                    if plot_mip:
-                        z_slice = statmap_data.shape[2] // 2
-                    else:
-                        z_slice = 260
 
                     # Crop for smaller axial view
                     crop_x = 30
@@ -198,7 +202,7 @@ class Figures_main:
 
             # ---- Single colorbar (both conditions share the same colormap), placed once
             # ---- in figure-fraction coordinates (independent of the participant grid) ----
-            ax_cbar = fig.add_axes([0.93, 0.75, 0.025, 0.15])
+            ax_cbar = fig.add_axes([0.93, 0.65, 0.025, 0.15])
             norm = plt.Normalize(vmin=stat_min, vmax=stat_max)
             sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
             sm.set_array([])
@@ -207,7 +211,9 @@ class Figures_main:
             cbar.ax.set_yticks([])
             cbar.ax.set_frame_on(False)
 
-            cbar.ax.text(-1.55, 0.5, f"z-score (uncorr)",rotation=90, fontsize=6,va="center", ha="right", transform=cbar.ax.transAxes)
+            # Label sits above the colorbar (horizontal, not rotated) so it can't collide
+            # with the last participant's title, regardless of figure width/subject count.
+            cbar.ax.text(0.5, 1.3, "z-score\n(uncorr)", fontsize=6, va="bottom", ha="center", transform=cbar.ax.transAxes)
             cbar.ax.text(0.5, -0.1, f"{stat_min:.1f}", fontsize=6,va="center", ha="right", transform=cbar.ax.transAxes)
             cbar.ax.text(0.5, 1.1, f"{stat_max:.1f}", fontsize=6, va="center", ha="right", transform=cbar.ax.transAxes)
 
