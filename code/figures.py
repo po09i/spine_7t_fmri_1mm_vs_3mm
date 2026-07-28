@@ -116,9 +116,13 @@ class Figures_main:
             
                     stat_thresh = np.where(statmap_data > stat_min, statmap_data, 0)
 
-                    # Axial slice shown below: the geometric mid-point of the (PAM50) Z axis,
-                    # not an activation peak or anatomical landmark -- just a fixed, consistent
-                    # level across subjects/conditions. Indicated on the coronal view below.
+                    # Axial slice below: its anatomical background is the geometric mid-point
+                    # of the (PAM50) Z axis -- not an activation peak or anatomical landmark,
+                    # just a fixed, consistent level across subjects/conditions. But (when
+                    # plot_mip=True, the default) the BOLD overlay itself is a max-intensity
+                    # projection across the *entire* Z axis (see mip_axi below), same as the
+                    # coronal view -- so it is not specific to this single slice, and no
+                    # z-position indicator is drawn on the coronal view for it.
                     z_slice = statmap_data.shape[2] // 2 if plot_mip else 260
 
                     # --- Coronal (top row) ---
@@ -135,15 +139,11 @@ class Figures_main:
                     template_cor = template_data[x_min:x_max, y_slice, z_min:z_max].T
 
                     ax_cor = fig.add_subplot(gs[row_start, col_start + map_idx])
-                    ax_cor.imshow(template_cor, cmap="gray", origin="lower",aspect='auto')
+                    ax_cor.imshow(template_cor, cmap="gray", origin="lower",aspect='equal')
                     if underlay_data is not None:
-                        ax_cor.imshow(underlay_data[x_min:x_max, y_slice, z_min:z_max].T, cmap="gray", origin="lower",aspect='auto')
+                        ax_cor.imshow(underlay_data[x_min:x_max, y_slice, z_min:z_max].T, cmap="gray", origin="lower",aspect='equal')
 
-                    ax_cor.imshow(mip_cor, cmap=cmap, origin="lower", vmin=stat_min, vmax=stat_max,aspect='auto')
-                    # Indicate where the axial slice below is taken from
-                    axi_row = z_slice - z_min
-                    if 0 <= axi_row < template_cor.shape[0]:
-                        ax_cor.axhline(y=axi_row, color="white", linestyle="--", linewidth=0.5, alpha=0.6)
+                    ax_cor.imshow(mip_cor, cmap=cmap, origin="lower", vmin=stat_min, vmax=stat_max,aspect='equal')
                     ax_cor.axis("off")
 
                     if map_idx == 0:
@@ -192,11 +192,11 @@ class Figures_main:
                     mip_axi = np.where(mip_axi > stat_min, mip_axi, np.nan)
 
                     ax_axi = fig.add_subplot(gs[row_start + 1, col_start + map_idx])
-                    ax_axi.imshow(template_axi, cmap="gray", origin="lower",aspect='auto')
+                    ax_axi.imshow(template_axi, cmap="gray", origin="lower",aspect='equal')
                     if underlay_data is not None:
                         ax_axi.imshow(underlay_data[x_min:x_max, y_min:y_max, z_slice].T,
                                     cmap="gray", alpha=0.3, origin="lower")
-                    ax_axi.imshow(mip_axi, cmap=cmap, origin="lower", vmin=stat_min, vmax=stat_max,aspect='auto')
+                    ax_axi.imshow(mip_axi, cmap=cmap, origin="lower", vmin=stat_min, vmax=stat_max,aspect='equal')
                     ax_axi.axis("off")
 
                     if subj_idx == 0 and map_idx == 0:
