@@ -145,7 +145,9 @@ try:
             continue
         figures.plot_fmri_maps(
             i_fnames=[f_3mm[0], f_avg3mm[0]],
-            output_fname=os.path.join(output_fig, f"n{len(IDs)}_tsnr_{shim_label}_3mm_vs_avg3mm_map.png"),
+            # preprocessing/data-quality comparison (native vs derived-resolution tSNR),
+            # not a second-level statistical result -- see #82.
+            output_fname=os.path.join(output_fig_preprocessing, f"n{len(IDs)}_tsnr_{shim_label}_3mm_vs_avg3mm_map.png"),
             stat_min=5, stat_max=16, cmap='turbo', cbar_label='tSNR',
             titles=[f"{shim_label} 3mm", f"{shim_label} avg3mm"],
             background_fname=os.path.join(path_code, "template", config["PAM50_t2"]), redo=redo)
@@ -624,7 +626,9 @@ if not bold_df.empty:
         for task in bold_df["task"].unique():
             bdf_task = bold_df[bold_df["task"] == task]
             for acq1, acq2, acq3, shim_label in SHIM_TRIPLETS:
-                fig_path = os.path.join(output_fig_preprocessing, f"{metric}_{shim_label}_{task}_triplet.png")
+                # Group-level summary of GLM z-maps (peak z / suprathreshold voxel count) --
+                # a second-level result, not preprocessing QC -- see #82.
+                fig_path = os.path.join(output_fig_second_level, f"{metric}_{shim_label}_{task}_triplet.png")
                 if os.path.exists(fig_path) and not redo:
                     print(f"Figure already exists: {fig_path}", flush=True)
                     continue
