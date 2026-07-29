@@ -167,33 +167,51 @@ try:
         z_slices = [280, 266, 256, 243, 225]
         for vox_thr in [0.005]:
             i_fnames_glm = []
+            acq_names_glm = []
             metrics_csvs = []
             values_csvs  = []
-            glm_dir = os.path.join(
+            # Glob for whichever perm* directory was actually computed (e.g. perm1000 or
+            # perm10000) rather than hardcoding the permutation count: a mismatch here
+            # silently emptied i_fnames_glm below (caught by "if not i_fnames_glm: ...
+            # skipping"), which is why this map went missing without any visible error.
+            glm_dir_cands = glob.glob(os.path.join(
                 second_level_dir.format("glm"),
-                f"cluster_p{cluster_corr}_vox{vox_thr}_perm10000"
-            )
-            for acq_name in config["design_exp"]["acq_names"]:
-                tag = "task-motor_acq-" + acq_name
-                nii_cands = glob.glob(os.path.join(glm_dir, tag, f"*_{tag}_t_clustercorrected.nii.gz"))
-                if not nii_cands:
-                    continue
-                nii_path = nii_cands[0]
-                i_fnames_glm.append(nii_path)
-                base = nii_path.split(".nii.gz")[0]
-                if os.path.exists(base + "_metrics.csv"):
-                    metrics_csvs.append(base + "_metrics.csv")
-                if os.path.exists(base + "_values.csv"):
-                    values_csvs.append(base + "_values.csv")
+                f"cluster_p{cluster_corr}_vox{vox_thr}_perm*"
+            ))
+            glm_dir = glm_dir_cands[0] if glm_dir_cands else None
+            if glm_dir is not None:
+                for acq_name in config["design_exp"]["acq_names"]:
+                    tag = "task-motor_acq-" + acq_name
+                    nii_cands = glob.glob(os.path.join(glm_dir, tag, f"*_{tag}_t_clustercorrected.nii.gz"))
+                    if not nii_cands:
+                        continue
+                    nii_path = nii_cands[0]
+                    i_fnames_glm.append(nii_path)
+                    acq_names_glm.append(acq_name)
+                    base = nii_path.split(".nii.gz")[0]
+                    if os.path.exists(base + "_metrics.csv"):
+                        metrics_csvs.append(base + "_metrics.csv")
+                    if os.path.exists(base + "_values.csv"):
+                        values_csvs.append(base + "_values.csv")
 
             if not i_fnames_glm:
                 print(f"INFO: No GLM maps for cluster={cluster_corr} vox={vox_thr}, skipping.", flush=True)
                 continue
 
+            # Titles must reflect whichever acquisitions actually had data (not a
+            # hardcoded ["shimBase", "shimSlice"] default, which mislabels the map
+            # whenever e.g. both maps come from shimSlice).
+            acq_display_names = {
+                "shimBase+3mm": "shimBase\n3mm", "shimSlice+3mm": "shimSlice\n3mm",
+                "shimBase+1mm+sms2": "shimBase\n1mm", "shimSlice+1mm+sms2": "shimSlice\n1mm",
+            }
+            titles_glm = [acq_display_names.get(a, a) for a in acq_names_glm]
+
             glm_plot[cluster_corr][vox_thr] = figures.plot_fmri_maps(
                 i_fnames=i_fnames_glm,
                 output_fname=os.path.join(output_fig, f"n{len(IDs)}_glm_{cluster_corr}_vox{vox_thr}_avg_map.png"),
                 stat_min=3, stat_max=6, cbar_label='t-value', z_slices=z_slices,
+                titles=titles_glm,
                 background_fname=os.path.join(path_code, "template", config["PAM50_t2"]),
                 underlay_fname=os.path.join(path_code, "template", config["PAM50_gm"]), redo=redo)
 
@@ -201,6 +219,7 @@ try:
                 i_fnames=i_fnames_glm,
                 output_fname=os.path.join(output_fig, f"n{len(IDs)}_glm_axial_{cluster_corr}_vox{vox_thr}_avg_map.png"),
                 stat_min=3, stat_max=6, cbar_label='t-value',
+                titles=titles_glm,
                 background_fname=os.path.join(path_code, "template", config["PAM50_t2"]),
                 underlay_fname=os.path.join(path_code, "template", config["PAM50_gm"]),
                 z_slices=z_slices, n_slices=len(z_slices), redo=redo)
@@ -326,7 +345,7 @@ DERIVED_ACQS = SMOOTH_ACQS + AVG_ACQS
 ALL_ACQS     = REGULAR_ACQS + DERIVED_ACQS
 
 SHIM_TRIPLETS = [
-    ("shimSlice+1mm+sms2", "shimSlice+1mm+sms2+smooth3mm", "shimSlice+3mm", "shimSlice"),
+    ("shimSlice+3mm", "shimSlice+1mm+sms2", "shimSlice+1mm+sms2+smooth3mm", "shimSlice"),
 ]
 COLORS_3  = ["#E64B35", "#F39B7F", "#4DBBD5"]
 XLABELS_3 = {
