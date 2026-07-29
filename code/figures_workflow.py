@@ -154,6 +154,14 @@ try:
 except Exception as e:
     print(f"WARNING: tSNR group maps failed: {e}", flush=True)
 
+# Short display labels for group-map titles, derived from whichever acquisitions
+# actually had data at a given step (rather than a hardcoded ["shimBase", "shimSlice"]
+# default, which mislabels the map whenever e.g. both maps come from shimSlice).
+ACQ_DISPLAY_NAMES = {
+    "shimBase+3mm": "shimBase\n3mm", "shimSlice+3mm": "shimSlice\n3mm",
+    "shimBase+1mm+sms2": "shimBase\n1mm", "shimSlice+1mm+sms2": "shimSlice\n1mm",
+}
+
 # ------------------------------------------------------------------
 # 5. GLM group maps + bar + dist + combined
 # ------------------------------------------------------------------
@@ -198,14 +206,7 @@ try:
                 print(f"INFO: No GLM maps for cluster={cluster_corr} vox={vox_thr}, skipping.", flush=True)
                 continue
 
-            # Titles must reflect whichever acquisitions actually had data (not a
-            # hardcoded ["shimBase", "shimSlice"] default, which mislabels the map
-            # whenever e.g. both maps come from shimSlice).
-            acq_display_names = {
-                "shimBase+3mm": "shimBase\n3mm", "shimSlice+3mm": "shimSlice\n3mm",
-                "shimBase+1mm+sms2": "shimBase\n1mm", "shimSlice+1mm+sms2": "shimSlice\n1mm",
-            }
-            titles_glm = [acq_display_names.get(a, a) for a in acq_names_glm]
+            titles_glm = [ACQ_DISPLAY_NAMES.get(a, a) for a in acq_names_glm]
 
             glm_plot[cluster_corr][vox_thr] = figures.plot_fmri_maps(
                 i_fnames=i_fnames_glm,
@@ -255,36 +256,47 @@ except Exception as e:
 # 5b. GLM uncorrected maps (vox p<0.05, for exploratory display with small N)
 # ------------------------------------------------------------------
 print("", flush=True)
-print("=== GLM uncorrected group maps (vox p<0.05) ===", flush=True)
+print("=== GLM uncorrected group maps ===", flush=True)
 try:
-    vox_thr_unc = 0.05
-    # Use glob to find whichever perm* directory was computed (e.g. perm1000 or perm10000)
-    raw_perm_dirs = glob.glob(os.path.join(second_level_dir.format("glm"), f"vox{vox_thr_unc}_perm*"))
+    # Glob for whichever vox*_perm* directory actually exists, rather than assuming a
+    # specific vox threshold (0.05): the primary voxelwise threshold actually computed
+    # (e.g. 0.005) doesn't necessarily match whatever was hardcoded here, and a mismatch
+    # silently produced nothing -- same class of bug as the perm10000/perm1000 mismatch
+    # fixed for the corrected group map above.
+    raw_perm_dirs = glob.glob(os.path.join(second_level_dir.format("glm"), "vox*_perm*"))
+    raw_perm_dir = raw_perm_dirs[0] if raw_perm_dirs else None
+    vox_thr_unc_match = re.search(r"vox([\d.]+)_perm", os.path.basename(raw_perm_dir)) if raw_perm_dir else None
+    vox_thr_unc = vox_thr_unc_match.group(1) if vox_thr_unc_match else None
+
     i_fnames_unc = []
-    if raw_perm_dirs:
-        raw_perm_dir = raw_perm_dirs[0]
+    acq_names_unc = []
+    if raw_perm_dir is not None:
         for acq_name in config["design_exp"]["acq_names"]:
             tag_unc = "task-motor_acq-" + acq_name
             nii_cands_unc = glob.glob(os.path.join(raw_perm_dir, tag_unc, f"*_{tag_unc}_t.nii.gz"))
             if nii_cands_unc:
                 i_fnames_unc.append(nii_cands_unc[0])
+                acq_names_unc.append(acq_name)
     if i_fnames_unc:
+        titles_unc = [ACQ_DISPLAY_NAMES.get(a, a) for a in acq_names_unc]
         z_slices_unc = [280, 266, 256, 243, 225]
         figures.plot_fmri_maps(
             i_fnames=i_fnames_unc,
             output_fname=os.path.join(output_fig, f"n{len(IDs)}_glm_uncorr_vox{vox_thr_unc}_avg_map.png"),
             stat_min=2, stat_max=5, cbar_label='t-value (uncorr.)', z_slices=z_slices_unc,
+            titles=titles_unc,
             background_fname=os.path.join(path_code, "template", config["PAM50_t2"]),
             underlay_fname=os.path.join(path_code, "template", config["PAM50_gm"]), redo=redo)
         figures.plot_fmri_maps_axial(
             i_fnames=i_fnames_unc,
             output_fname=os.path.join(output_fig, f"n{len(IDs)}_glm_uncorr_axial_vox{vox_thr_unc}_avg_map.png"),
             stat_min=2, stat_max=5, cbar_label='t-value (uncorr.)',
+            titles=titles_unc,
             background_fname=os.path.join(path_code, "template", config["PAM50_t2"]),
             underlay_fname=os.path.join(path_code, "template", config["PAM50_gm"]),
             z_slices=z_slices_unc, n_slices=len(z_slices_unc), redo=redo)
     else:
-        print(f"INFO: No vox{vox_thr_unc} uncorrected GLM maps found — skipping.", flush=True)
+        print("INFO: No uncorrected GLM maps found — skipping.", flush=True)
 except Exception as e:
     print(f"WARNING: GLM uncorrected group maps failed: {e}", flush=True)
 

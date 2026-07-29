@@ -292,11 +292,15 @@ class Figures_main:
                 num_voxels_list.append(np.nansum(statmap_data > stat_min))
                 values_list.append(statmap_data.flatten())
 
-                # --- Coronal slice ---
+                # --- Coronal (max-intensity projection across the AP axis) ---
+                # A single fixed y-slice can miss the true peak entirely if it doesn't
+                # happen to sit at that exact AP coordinate; MIP across the full AP
+                # extent (matching plot_first_level_maps) shows any suprathreshold signal
+                # regardless of where along that axis it falls.
                 x_min, x_max = 35, 105
                 z_min, z_max = 175, 333
-                y_slice = 72
-                cor_slice = statmap_data[x_min:x_max, y_slice, z_min:z_max]
+                y_slice = 72  # anatomical background slice only
+                cor_slice = np.max(statmap_data[x_min:x_max, :, z_min:z_max], axis=1)
                 cor_slice = np.where(cor_slice > stat_min, cor_slice, np.nan)
                 cor_slice = cor_slice.T
 
@@ -306,22 +310,19 @@ class Figures_main:
 
                 # if there are only nan or 0 values, skip plotting the statmap to avoid showing a blank colorbar
                 if np.nansum(cor_slice) == 0:
-                    print(f"warning: no suprathreshold voxels found for {titles[i]} (y={y_slice} coronal slice), skipping statmap overlay")
+                    print(f"warning: no suprathreshold voxels found for {titles[i]} (MIP across AP axis), skipping statmap overlay")
                 else:
                     im_cor = ax_cor.imshow(cor_slice, cmap=cmap, origin="lower", vmin=stat_min, vmax=stat_max, aspect="auto")
-                
+
                 # dashed lines for z_slices ──────────────────────────────────────────
                 if z_slices is not None:
                     slices = z_slices if isinstance(z_slices, (list, tuple)) else [z_slices]
                     for z_val in slices:
-                        row = z_val - z_min         
+                        row = z_val - z_min
                         if 0 <= row < cor_slice.shape[0]:
                             ax_cor.axhline(y=row, color="white", linewidth=0.3,
                                         linestyle="--", alpha=0.85)
-                
-                
-                ax_cor.text(0.5, 0.01, f"y={y_slice}", color="white", fontsize=5,
-                            ha="center", va="bottom", transform=ax_cor.transAxes)
+
                 ax_cor.axis("off")
                 ax_cor.set_title(titles[i], color="black", fontweight='bold', fontsize=9, fontname="Arial")
 
