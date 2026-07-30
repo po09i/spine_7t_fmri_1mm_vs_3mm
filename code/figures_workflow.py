@@ -253,11 +253,16 @@ except Exception as e:
     print(f"WARNING: GLM group maps failed: {e}", flush=True)
 
 # ------------------------------------------------------------------
-# 5b. GLM uncorrected maps (vox p<0.05, for exploratory display with small N)
+# 5b. GLM uncorrected maps (for exploratory display with small N)
 # ------------------------------------------------------------------
 print("", flush=True)
 print("=== GLM uncorrected group maps ===", flush=True)
 try:
+    # One-sided uncorrected p=0.01 for the actual second-level one-sample t-test
+    # (intercept-only design, df = n_subjects - 1). Computed from len(IDs) rather than
+    # hardcoded so it stays correct if the cohort size changes.
+    P_UNC = 0.01
+    T_THRESH_UNC = stats.t.ppf(1 - P_UNC, df=len(IDs) - 1)
     # Glob for whichever vox*_perm* directory actually exists, rather than assuming a
     # specific vox threshold (0.05): the primary voxelwise threshold actually computed
     # (e.g. 0.005) doesn't necessarily match whatever was hardcoded here, and a mismatch
@@ -283,14 +288,14 @@ try:
         figures.plot_fmri_maps(
             i_fnames=i_fnames_unc,
             output_fname=os.path.join(output_fig, f"n{len(IDs)}_glm_uncorr_vox{vox_thr_unc}_avg_map.png"),
-            stat_min=2, stat_max=5, cbar_label='t-value (uncorr.)',
+            stat_min=T_THRESH_UNC, stat_max=5, cbar_label='t-value (uncorr.)',
             titles=titles_unc,
             background_fname=os.path.join(path_code, "template", config["PAM50_t2"]),
             underlay_fname=os.path.join(path_code, "template", config["PAM50_gm"]), redo=redo)
         figures.plot_fmri_maps_axial(
             i_fnames=i_fnames_unc,
             output_fname=os.path.join(output_fig, f"n{len(IDs)}_glm_uncorr_axial_vox{vox_thr_unc}_avg_map.png"),
-            stat_min=2, stat_max=5, cbar_label='t-value (uncorr.)',
+            stat_min=T_THRESH_UNC, stat_max=5, cbar_label='t-value (uncorr.)',
             titles=titles_unc,
             background_fname=os.path.join(path_code, "template", config["PAM50_t2"]),
             underlay_fname=os.path.join(path_code, "template", config["PAM50_gm"]),
