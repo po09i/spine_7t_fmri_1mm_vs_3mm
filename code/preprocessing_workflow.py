@@ -675,3 +675,41 @@ tsnr_ana.generate_tsnr_maps_and_csv()
 tsnr_ana.generate_tsnr_maps_derived()
 print("=== tSNR script Done ===", flush=True)
 
+# ------------------------------------------------------------------
+# T2*w-to-EPI registration (REST data only), for the MI-with-T2* data-quality
+# metric computed in figures_workflow.py. Moved here so it's computed once as
+# part of preprocessing, cached under derivatives, rather than on demand
+# during figure generation (#88).
+# ------------------------------------------------------------------
+print("", flush=True)
+print("=== T2*w-to-EPI registration Start ===", flush=True)
+ALL_ACQS_T2STAR = list(config["design_exp"]["acq_names"]) + list(config.get("derived_acq", {}).keys())
+for ID in IDs:
+    t2star_img = os.path.join(path_data, f"sub-{ID}", "anat", f"sub-{ID}_T2star.nii.gz")
+    if not os.path.exists(t2star_img):
+        continue
+
+    manual_t2star_seg = os.path.join(manual_dir, f"sub-{ID}", "anat",
+                                     manual_label_filename(f"sub-{ID}_T2star_seg.nii.gz", "SC"))
+    auto_t2star_seg = os.path.join(preprocessing_dir.format(ID), "anat", "sct_deepseg",
+                                   f"sub-{ID}_T2star_seg.nii.gz")
+    t2star_seg = manual_t2star_seg if os.path.exists(manual_t2star_seg) else auto_t2star_seg
+    if not os.path.exists(t2star_seg):
+        continue
+
+    for acq_name in ALL_ACQS_T2STAR:
+        tag = f"task-rest_acq-{acq_name}"
+        tag_dir = os.path.join(preprocessing_dir.format(ID), "func", tag)
+
+        epi_seg_cands = (glob.glob(os.path.join(tag_dir, f"sub-{ID}_{tag}*_bold_moco_mean_seg.nii.gz")) or
+                         glob.glob(os.path.join(tag_dir, "sct_deepseg", f"sub-{ID}_{tag}*_bold_moco_mean_seg.nii.gz")))
+        epi_moco_cands = glob.glob(os.path.join(tag_dir, "sct_fmri_moco", f"sub-{ID}_{tag}*_bold_moco_mean.nii.gz"))
+        if not epi_seg_cands or not epi_moco_cands:
+            continue
+
+        preprocess_Sc.coreg_t2star2epi(
+            ID=ID, t2star_img=t2star_img, t2star_seg=t2star_seg,
+            epi_img=sorted(epi_moco_cands)[-1], epi_seg=sorted(epi_seg_cands)[0],
+            task_name=tag, redo=redo, verbose=verbose)
+print("=== T2*w-to-EPI registration Done ===", flush=True)
+

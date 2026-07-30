@@ -971,6 +971,83 @@ class Preprocess_Sc:
 
         return (o_folder, o_warp_img,o_warpinv_img)
 
+    def coreg_t2star2epi(self, ID=None, t2star_img=None, t2star_seg=None, epi_img=None, epi_seg=None,
+                          o_folder=None, task_name='', redo=False, verbose=True):
+        """
+        Registers the anatomical T2*w image into a given functional (EPI) acquisition's
+        space, using center-of-mass alignment on the spinal cord segmentations. Used to
+        compute mutual information between T2*w and EPI signal as a data-quality metric
+        (see figures_workflow.py's MI-with-T2* section). Moved here from figures_workflow.py
+        so this registration is computed once during preprocessing rather than on demand
+        during figure generation (#88).
+
+        Attributes:
+        -----------
+        ID : str
+            Participant ID (required).
+        t2star_img : str
+            Anatomical T2*w image filename (required).
+        t2star_seg : str
+            T2*w spinal cord segmentation (required; caller should prefer the manual
+            correction over the automatic one, see manual_label_filename()).
+        epi_img : str
+            Functional (EPI) mean image filename to register the T2*w into (required).
+        epi_seg : str
+            EPI spinal cord segmentation (required).
+        o_folder : str
+            Output folder (default: None; auto-generated under
+            preprocessing_dir/func/{task_name}/sct_register_multimodal/).
+        task_name : str
+            Task+acq tag (e.g., "task-rest_acq-shimSlice+3mm"), used for the output folder.
+        redo : bool
+            Redo registration if output exists (default: False).
+        verbose : bool
+            Display QC plots (default: True).
+
+        Outputs:
+        --------
+        o_img : str
+            Filename of the T2*w image registered into EPI space, or None if registration
+            failed or a required input was missing.
+        """
+        if ID is None:
+            raise Warning("Please provide participant ID, e.g., _.stc(ID='A001')")
+        if t2star_img is None or t2star_seg is None or epi_img is None or epi_seg is None:
+            raise Warning("Provide t2star_img, t2star_seg, epi_img, and epi_seg")
+
+        print_step_header("T2*w-to-EPI registration", ID, task_name)
+
+        preprocess_dir = self.preprocessing_dir.format(ID)
+        if o_folder is None:
+            o_folder = os.path.join(preprocess_dir, "func", task_name, "sct_register_multimodal")
+        os.makedirs(o_folder, exist_ok=True)
+
+        o_img = os.path.join(o_folder, f"sub-{ID}_{task_name}_T2star_in_EPI.nii.gz")
+
+        if not os.path.exists(o_img) or redo:
+            print(f">>>>> T2*w-to-EPI registration running for sub-{ID} {task_name}...")
+            t2star_base = os.path.basename(t2star_img).split('.')[0]
+            cmd = (f"sct_register_multimodal -i {t2star_img} -iseg {t2star_seg}"
+                   f" -d {epi_img} -dseg {epi_seg}"
+                   f" -param step=1,type=seg,algo=centermass"
+                   f" -ofolder {o_folder} -x spline -v 0")
+            os.system(cmd)
+            reg_out = os.path.join(o_folder, f"{t2star_base}_reg.nii.gz")
+            if os.path.exists(reg_out):
+                os.rename(reg_out, o_img)
+        else:
+            print("/!\\ T2*w-to-EPI registration detected — using it")
+
+        if not os.path.exists(o_img):
+            return None
+
+        if verbose:
+            cmd_qc = (f"sct_qc -i {epi_img} -s {epi_seg} -d {o_img} -p sct_register_multimodal"
+                      f" -qc {self.qc_dir} -qc-subject sub-{ID} -qc-contrast {task_name} -v 0")
+            os.system(cmd_qc)
+
+        return o_img
+
     def apply_warp(self,i_img=None,ID=None,o_folder=None,dest_img=None,warping_field=None,ses_name='',task_name='',tag='_w',threshold=None,mean=False,method='spline',redo=False,verbose=True,n_jobs=1):
         """
         Apply warping field(s) to spinal cord input image(s) using sct_apply_transfo.

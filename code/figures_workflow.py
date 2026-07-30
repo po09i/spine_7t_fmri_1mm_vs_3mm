@@ -544,11 +544,26 @@ def _compute_mi(x, y, bins=MI_BINS):
     return float(np.sum(pxy[mask] * np.log(pxy[mask] / (px * py)[mask])))
 
 def _t2star_in_epi(ID, tag):
-    """Register T2*w -> EPI space using centermass on SC segs, return path to warped T2*w."""
+    """Return path to T2*w registered into EPI space (centermass on SC segs).
+
+    Preferentially uses the precomputed registration from the preprocessing pipeline
+    (preprocess.py's coreg_t2star2epi(), see #88) so this expensive step doesn't run
+    on demand during figure generation. Falls back to computing it here -- as before
+    this migration -- only if preprocessing hasn't been (re)run yet for this subject/tag.
+    """
+    precomputed = os.path.join(preprocessing_dir_compare.format(ID), "func", tag,
+                               "sct_register_multimodal", f"sub-{ID}_{tag}_T2star_in_EPI.nii.gz")
+    if os.path.exists(precomputed) and not redo:
+        return precomputed
+
     tag_cache = os.path.join(mi_cache, f"sub-{ID}", tag)
     out_path  = os.path.join(tag_cache, f"sub-{ID}_T2star_in_EPI.nii.gz")
     if os.path.exists(out_path) and not redo:
         return out_path
+
+    print(f"INFO: No precomputed T2*w-in-EPI registration for sub-{ID} {tag} "
+          f"(expected at {precomputed}) -- computing it here as a fallback. "
+          f"Rerun preprocessing_workflow.py to compute this ahead of time instead (#88).", flush=True)
 
     t2star = os.path.join(path_data, f"sub-{ID}", "anat", f"sub-{ID}_T2star.nii.gz")
     if not os.path.exists(t2star):
