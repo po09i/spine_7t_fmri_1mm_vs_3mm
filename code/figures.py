@@ -250,7 +250,7 @@ class Figures_main:
         return output_fname
     
     def plot_fmri_maps(self, i_fnames=None, output_fname=None, stat_min=2.3, stat_max=5,titles = ["shimBase", "shimSlice"],
-                  background_fname=None, cbar_label='t-value', cmap="autumn", z_slices=None,
+                  background_fname=None, cbar_label='t-value', cmap="autumn",
                   mask_fname=None, underlay_fname=None, task_name=None, verbose=True, redo=False):
 
         if output_fname is None:
@@ -313,15 +313,6 @@ class Figures_main:
                     print(f"warning: no suprathreshold voxels found for {titles[i]} (MIP across AP axis), skipping statmap overlay")
                 else:
                     im_cor = ax_cor.imshow(cor_slice, cmap=cmap, origin="lower", vmin=stat_min, vmax=stat_max, aspect="auto")
-
-                # dashed lines for z_slices ──────────────────────────────────────────
-                if z_slices is not None:
-                    slices = z_slices if isinstance(z_slices, (list, tuple)) else [z_slices]
-                    for z_val in slices:
-                        row = z_val - z_min
-                        if 0 <= row < cor_slice.shape[0]:
-                            ax_cor.axhline(y=row, color="white", linewidth=0.3,
-                                        linestyle="--", alpha=0.85)
 
                 ax_cor.axis("off")
                 ax_cor.set_title(titles[i], color="black", fontweight='bold', fontsize=9, fontname="Arial")

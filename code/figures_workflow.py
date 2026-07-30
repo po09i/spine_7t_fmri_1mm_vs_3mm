@@ -211,7 +211,7 @@ try:
             glm_plot[cluster_corr][vox_thr] = figures.plot_fmri_maps(
                 i_fnames=i_fnames_glm,
                 output_fname=os.path.join(output_fig, f"n{len(IDs)}_glm_{cluster_corr}_vox{vox_thr}_avg_map.png"),
-                stat_min=3, stat_max=6, cbar_label='t-value', z_slices=z_slices,
+                stat_min=3, stat_max=6, cbar_label='t-value',
                 titles=titles_glm,
                 background_fname=os.path.join(path_code, "template", config["PAM50_t2"]),
                 underlay_fname=os.path.join(path_code, "template", config["PAM50_gm"]), redo=redo)
@@ -283,7 +283,7 @@ try:
         figures.plot_fmri_maps(
             i_fnames=i_fnames_unc,
             output_fname=os.path.join(output_fig, f"n{len(IDs)}_glm_uncorr_vox{vox_thr_unc}_avg_map.png"),
-            stat_min=2, stat_max=5, cbar_label='t-value (uncorr.)', z_slices=z_slices_unc,
+            stat_min=2, stat_max=5, cbar_label='t-value (uncorr.)',
             titles=titles_unc,
             background_fname=os.path.join(path_code, "template", config["PAM50_t2"]),
             underlay_fname=os.path.join(path_code, "template", config["PAM50_gm"]), redo=redo)
@@ -320,7 +320,7 @@ for icc_label, subdir in [
             i_fnames=[icc_nii],
             output_fname=os.path.join(output_fig, f"n{len(IDs)}_icc_{icc_label}.png"),
             titles=[""], cmap="rainbow", cbar_label='ICC',
-            z_slices=z_slices_icc, stat_min=0.3, stat_max=0.9,
+            stat_min=0.3, stat_max=0.9,
             background_fname=os.path.join(path_code, "template", config["PAM50_t2"]),
             redo=redo)
         icc_axial_plot = figures.plot_fmri_maps_axial(
