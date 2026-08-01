@@ -364,9 +364,10 @@ ALL_ACQS     = REGULAR_ACQS + DERIVED_ACQS
 SHIM_TRIPLETS = [
     ("shimSlice+3mm", "shimSlice+1mm+sms2", "shimSlice+1mm+sms2+smooth3mm", "shimSlice"),
 ]
-COLORS_3  = ["#E64B35", "#F39B7F", "#4DBBD5"]
+# Same convention as SNRPLOT_4COND below: 3mm blueish, 1mm reddish (shimSlice shades).
+COLORS_3  = ["#74ADD1", "#F4A582", "#D73027"]
 XLABELS_3 = {
-    "shimSlice+1mm+sms2":           "1mm\n(SMS2)",
+    "shimSlice+1mm+sms2":           "1mm\n(native)",
     "shimSlice+1mm+sms2+smooth3mm": "1mm\n(smooth3mm)",
     "shimSlice+3mm":                "3mm",
 }
