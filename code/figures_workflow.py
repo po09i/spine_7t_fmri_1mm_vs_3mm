@@ -371,7 +371,8 @@ XLABELS_3 = {
     "shimSlice+1mm+sms2+smooth3mm": "1mm\n(smooth3mm)",
     "shimSlice+3mm":                "3mm",
 }
-T_THRESHOLD = 2.8
+# One-sided p=0.01 threshold, same convention as T_THRESH_UNC for the group map (#87).
+T_THRESHOLD = stats.t.ppf(1 - 0.01, df=len(IDs) - 1)
 MI_BINS = 32
 pam50_mask_path = os.path.join(path_code, "template", config["PAM50_cord"])
 all_tasks = config["design_exp"]["task_names"]
@@ -522,7 +523,7 @@ if not os.path.exists(bold_csv) or redo:
                     if zvals.size == 0:
                         continue
                     bold_records.append({"subject": ID, "task": task, "acq": acq_name,
-                                         "peak_z": float(np.max(zvals)),
+                                         "peak_t": float(np.max(zvals)),
                                          "n_active": int(np.sum(zvals > T_THRESHOLD))})
         bold_df = pd.DataFrame(bold_records)
         bold_df.to_csv(bold_csv, index=False)
@@ -679,8 +680,8 @@ for task in df_tsnr["task"].unique():
 if not bold_df.empty:
     # Comparison bracket: 3mm (acq1) vs 1mm smoothed (acq3), skipping 1mm native (acq2).
     BOLD_COMPARE_IDX = (0, 2)
-    for metric, ylabel, ylim in [("peak_z", "Peak z-score within PAM50 SC mask", (2, 7)),
-                                  ("n_active", f"Suprathreshold voxels (t > {T_THRESHOLD})", (0, 300))]:
+    for metric, ylabel, ylim in [("peak_t", "Peak t-value within PAM50 SC mask", (2, 7)),
+                                  ("n_active", f"Suprathreshold voxels (t > {T_THRESHOLD:.3f})", (0, 500))]:
         for task in bold_df["task"].unique():
             bdf_task = bold_df[bold_df["task"] == task]
             for acq1, acq2, acq3, shim_label in SHIM_TRIPLETS:
