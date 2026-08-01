@@ -371,7 +371,7 @@ XLABELS_3 = {
     "shimSlice+1mm+sms2+smooth3mm": "1mm\n(smooth3mm)",
     "shimSlice+3mm":                "3mm",
 }
-Z_THRESHOLD = 3.1
+T_THRESHOLD = 2.8
 MI_BINS = 32
 pam50_mask_path = os.path.join(path_code, "template", config["PAM50_cord"])
 all_tasks = config["design_exp"]["task_names"]
@@ -421,10 +421,12 @@ def draw_bracket(ax, x1, x2, y_top, label, fontsize=8):
     ax.text((x1 + x2) / 2, y_top + tick * 0.5, label, ha="center", va="bottom", fontsize=fontsize)
 
 
-def _triplet_fig(ax, d, acqs, xpos, common_all, common_23, pstr23, ylabel, title):
+def _triplet_fig(ax, d, acqs, xpos, common_all, common_pair, pstr_pair, ylabel, title,
+                  compare_idx=(1, 2), ylim=None):
+    i1, i2 = compare_idx
     vals_list = []
-    for acq in acqs:
-        subs = common_23 if acq != acqs[0] else common_all
+    for i, acq in enumerate(acqs):
+        subs = common_pair if i in compare_idx else common_all
         vals_list.append(d[acq].reindex(subs).dropna().values if len(subs) > 0 else np.array([]))
     bp_data = [v for v in vals_list if v.size > 0]
     bp_pos  = [xpos[i] for i, v in enumerate(vals_list) if v.size > 0]
@@ -440,13 +442,15 @@ def _triplet_fig(ax, d, acqs, xpos, common_all, common_23, pstr23, ylabel, title
     for sub in common_all:
         ax.plot(xpos, [d[a].get(sub, np.nan) for a in acqs],
                 "o-", color="dimgray", alpha=0.5, linewidth=1, markersize=4, zorder=3)
-    for sub in common_23.difference(common_all):
-        ax.plot([1, 2], [d[acqs[1]][sub], d[acqs[2]][sub]], "o--",
+    for sub in common_pair.difference(common_all):
+        ax.plot([xpos[i1], xpos[i2]], [d[acqs[i1]][sub], d[acqs[i2]][sub]], "o--",
                 color="dimgray", alpha=0.4, linewidth=1, markersize=4, zorder=3)
-    ax.set_ylim(bottom=0)
-    y_ceil = max(max(v) for v in bp_data) * 1.25
-    ax.set_ylim(top=y_ceil)
-    draw_bracket(ax, 1, 2, y_ceil * 0.91, pstr23, fontsize=8)
+    if ylim is not None:
+        y_bottom, y_top = ylim
+    else:
+        y_bottom, y_top = 0, max(max(v) for v in bp_data) * 1.25
+    ax.set_ylim(y_bottom, y_top)
+    draw_bracket(ax, xpos[i1], xpos[i2], y_bottom + (y_top - y_bottom) * 0.91, pstr_pair, fontsize=8)
     ax.set_xticks(xpos)
     ax.set_xticklabels([XLABELS_3[a] for a in acqs], fontsize=9)
     ax.set_ylabel(ylabel, fontsize=9)
@@ -519,7 +523,7 @@ if not os.path.exists(bold_csv) or redo:
                         continue
                     bold_records.append({"subject": ID, "task": task, "acq": acq_name,
                                          "peak_z": float(np.max(zvals)),
-                                         "n_active": int(np.sum(zvals > Z_THRESHOLD))})
+                                         "n_active": int(np.sum(zvals > T_THRESHOLD))})
         bold_df = pd.DataFrame(bold_records)
         bold_df.to_csv(bold_csv, index=False)
         print(f"Saved: {bold_csv}", flush=True)
@@ -673,8 +677,10 @@ for task in df_tsnr["task"].unique():
 
 # --- 7e. BOLD sensitivity triplet figures ---
 if not bold_df.empty:
-    for metric, ylabel in [("peak_z", "Peak z-score within PAM50 SC mask"),
-                            ("n_active", f"Suprathreshold voxels (z > {Z_THRESHOLD})")]:
+    # Comparison bracket: 3mm (acq1) vs 1mm smoothed (acq3), skipping 1mm native (acq2).
+    BOLD_COMPARE_IDX = (0, 2)
+    for metric, ylabel, ylim in [("peak_z", "Peak z-score within PAM50 SC mask", (2, 7)),
+                                  ("n_active", f"Suprathreshold voxels (t > {T_THRESHOLD})", (0, 300))]:
         for task in bold_df["task"].unique():
             bdf_task = bold_df[bold_df["task"] == task]
             for acq1, acq2, acq3, shim_label in SHIM_TRIPLETS:
@@ -686,15 +692,16 @@ if not bold_df.empty:
                     continue
                 d = {a: bdf_task[bdf_task["acq"] == a].set_index("subject")[metric] for a in [acq1, acq2, acq3]}
                 common_all = d[acq1].index.intersection(d[acq2].index).intersection(d[acq3].index)
-                common_23  = d[acq2].index.intersection(d[acq3].index)
-                if len(common_23) < 2:
-                    print(f"WARNING: Only {len(common_23)} paired for {metric} {shim_label} task-{task}, skipping.", flush=True)
+                common_13  = d[acq1].index.intersection(d[acq3].index)
+                if len(common_13) < 2:
+                    print(f"WARNING: Only {len(common_13)} paired for {metric} {shim_label} task-{task}, skipping.", flush=True)
                     continue
-                _, _, pstr23 = wilcoxon_str(d[acq2].loc[common_23].values, d[acq3].loc[common_23].values)
+                _, _, pstr13 = wilcoxon_str(d[acq1].loc[common_13].values, d[acq3].loc[common_13].values)
                 try:
                     fig, ax = plt.subplots(figsize=(4, 4.5))
-                    _triplet_fig(ax, d, [acq1, acq2, acq3], [0, 1, 2], common_all, common_23, pstr23, ylabel,
-                                 f"{metric}: 1mm vs 3mm  ({shim_label}, task-{task})\nn={len(common_23)} paired")
+                    _triplet_fig(ax, d, [acq1, acq2, acq3], [0, 1, 2], common_all, common_13, pstr13, ylabel,
+                                 f"{metric}: 1mm vs 3mm  ({shim_label}, task-{task})\nn={len(common_13)} paired",
+                                 compare_idx=BOLD_COMPARE_IDX, ylim=ylim)
                     fig.tight_layout(); fig.savefig(fig_path, dpi=300, bbox_inches="tight"); plt.close(fig)
                     print(f"Saved: {fig_path}", flush=True)
                 except Exception as e:
