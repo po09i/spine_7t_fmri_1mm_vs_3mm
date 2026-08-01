@@ -225,6 +225,15 @@ try:
                 underlay_fname=os.path.join(path_code, "template", config["PAM50_gm"]),
                 z_slices=z_slices, n_slices=len(z_slices), redo=redo)
 
+            figures.plot_fmri_maps_axial(
+                i_fnames=i_fnames_glm,
+                output_fname=os.path.join(output_fig, f"n{len(IDs)}_glm_axial_mip_{cluster_corr}_vox{vox_thr}_avg_map.png"),
+                stat_min=3, stat_max=6, cbar_label='t-value',
+                titles=titles_glm,
+                background_fname=os.path.join(path_code, "template", config["PAM50_t2"]),
+                underlay_fname=os.path.join(path_code, "template", config["PAM50_gm"]),
+                mip=True, redo=redo)
+
             if metrics_csvs:
                 bar_plot[cluster_corr][vox_thr] = figures.bar_plot(
                     csv_pair=metrics_csvs, figsize=(2, 2.7),
@@ -300,6 +309,14 @@ try:
             background_fname=os.path.join(path_code, "template", config["PAM50_t2"]),
             underlay_fname=os.path.join(path_code, "template", config["PAM50_gm"]),
             z_slices=z_slices_unc, n_slices=len(z_slices_unc), redo=redo)
+        figures.plot_fmri_maps_axial(
+            i_fnames=i_fnames_unc,
+            output_fname=os.path.join(output_fig, f"n{len(IDs)}_glm_uncorr_axial_mip_vox{vox_thr_unc}_avg_map.png"),
+            stat_min=T_THRESH_UNC, stat_max=5, cbar_label='t-value (uncorr.)',
+            titles=titles_unc,
+            background_fname=os.path.join(path_code, "template", config["PAM50_t2"]),
+            underlay_fname=os.path.join(path_code, "template", config["PAM50_gm"]),
+            mip=True, redo=redo)
     else:
         print("INFO: No uncorrected GLM maps found — skipping.", flush=True)
 except Exception as e:
