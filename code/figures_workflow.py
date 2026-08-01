@@ -503,36 +503,49 @@ except pd.errors.EmptyDataError:
 # --- 7b. BOLD sensitivity ---
 bold_csv = os.path.join(out_dir, "bold_sensitivity.csv")
 glm_base_dir = os.path.join(path_data, config["first_level"]["dir"].format("glm", "").split("sub")[0])
-if not os.path.exists(bold_csv) or redo:
+BOLD_COLUMNS = {"subject", "task", "acq", "peak_t", "n_active"}
+
+
+def _compute_bold_df():
     if not os.path.exists(pam50_mask_path):
         print(f"WARNING: PAM50 cord mask not found, skipping BOLD sensitivity.", flush=True)
-        bold_df = pd.DataFrame()
-    else:
-        pam50_mask = nib.load(pam50_mask_path).get_fdata() > 0
-        bold_records = []
-        for ID in IDs:
-            for task in all_tasks:
-                for acq_name in ALL_ACQS:
-                    tag = f"task-{task}_acq-{acq_name}"
-                    zmap_cands = glob.glob(os.path.join(glm_base_dir, f"sub-{ID}", tag,
-                                                        f"sub-{ID}_{tag}*trial_RH-rest*inTemplate.nii.gz"))
-                    if not zmap_cands:
-                        continue
-                    zvals = nib.load(sorted(zmap_cands)[-1]).get_fdata()[pam50_mask]
-                    zvals = zvals[np.isfinite(zvals)]
-                    if zvals.size == 0:
-                        continue
-                    bold_records.append({"subject": ID, "task": task, "acq": acq_name,
-                                         "peak_t": float(np.max(zvals)),
-                                         "n_active": int(np.sum(zvals > T_THRESHOLD))})
-        bold_df = pd.DataFrame(bold_records)
-        bold_df.to_csv(bold_csv, index=False)
-        print(f"Saved: {bold_csv}", flush=True)
+        return pd.DataFrame()
+    pam50_mask = nib.load(pam50_mask_path).get_fdata() > 0
+    bold_records = []
+    for ID in IDs:
+        for task in all_tasks:
+            for acq_name in ALL_ACQS:
+                tag = f"task-{task}_acq-{acq_name}"
+                zmap_cands = glob.glob(os.path.join(glm_base_dir, f"sub-{ID}", tag,
+                                                    f"sub-{ID}_{tag}*trial_RH-rest*inTemplate.nii.gz"))
+                if not zmap_cands:
+                    continue
+                zvals = nib.load(sorted(zmap_cands)[-1]).get_fdata()[pam50_mask]
+                zvals = zvals[np.isfinite(zvals)]
+                if zvals.size == 0:
+                    continue
+                bold_records.append({"subject": ID, "task": task, "acq": acq_name,
+                                     "peak_t": float(np.max(zvals)),
+                                     "n_active": int(np.sum(zvals > T_THRESHOLD))})
+    return pd.DataFrame(bold_records)
+
+
+if not os.path.exists(bold_csv) or redo:
+    bold_df = _compute_bold_df()
+    bold_df.to_csv(bold_csv, index=False)
+    print(f"Saved: {bold_csv}", flush=True)
 else:
     try:
         bold_df = pd.read_csv(bold_csv)
     except pd.errors.EmptyDataError:
         bold_df = pd.DataFrame()
+    # Cached CSV predates a column rename/threshold change (e.g. peak_z -> peak_t, #90):
+    # recompute rather than crash or silently plot stale values.
+    if not bold_df.empty and not BOLD_COLUMNS.issubset(bold_df.columns):
+        print(f"INFO: {bold_csv} has a stale schema (missing {BOLD_COLUMNS - set(bold_df.columns)}), recomputing.", flush=True)
+        bold_df = _compute_bold_df()
+        bold_df.to_csv(bold_csv, index=False)
+        print(f"Saved: {bold_csv}", flush=True)
 
 # --- 7c. MI with T2* GRE ---
 mi_csv   = os.path.join(out_dir, "mi_t2star.csv")
