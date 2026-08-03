@@ -353,8 +353,14 @@ class Figures_main:
     
     def plot_fmri_maps_axial(self, i_fnames=None, output_fname=None, stat_min=2.3, stat_max=5,
                           titles=["shimBase", "shimSlice"], background_fname=None, cbar_label='t-value', cmap="autumn",
-                          z_slices=None, n_slices=6, mask_fname=None, underlay_fname=None,
+                          z_slices=None, n_slices=6, mip=False, mask_fname=None, underlay_fname=None,
                           task_name=None, verbose=True, redo=False):
+        """
+        mip=True collapses the axial view to a single row per map, showing the
+        max-intensity projection across the full S-I (z) axis instead of a grid of
+        discrete slices -- avoids missing signal that doesn't happen to fall on one
+        of the selected z levels (same rationale as the coronal MIP used elsewhere here).
+        """
 
         if output_fname is None:
             raise ValueError("output_fname is empty")
@@ -368,11 +374,13 @@ class Figures_main:
         if titles is None:
             titles = [f"map{i}" for i in range(n_maps)]
 
+        n_rows_plot = 1 if mip else n_slices
+
         if not os.path.exists(output_fname) or redo:
-            fig = plt.figure(figsize=(n_maps * 0.6, n_slices * 0.6))
+            fig = plt.figure(figsize=(n_maps * 0.6, n_rows_plot * 0.6))
             fig.subplots_adjust(left=0.01, right=0.99, top=0.92, bottom=0.05)
 
-            gs = fig.add_gridspec(nrows=n_slices, ncols=n_maps,
+            gs = fig.add_gridspec(nrows=n_rows_plot, ncols=n_maps,
                                 hspace=0.01, wspace=0.05)
 
             # --- Load template ---
@@ -385,7 +393,7 @@ class Figures_main:
             # --- Crop window ---
             crop_x, crop_y = 30, 30
 
-            # --- Determine z slices from first map ---
+            # --- Determine z slices from first map (multi-slice mode only) ---
             stat_img0 = nib.as_closest_canonical(nib.load(i_fnames[0]))
             statmap_data0 = stat_img0.get_fdata()
             x0 = statmap_data0.shape[0] // 2
@@ -394,22 +402,47 @@ class Figures_main:
             y_min_axi, y_max_axi = y0 - crop_y, y0 + crop_y
             crop_stat0 = statmap_data0[x_min_axi:x_max_axi, y_min_axi:y_max_axi, :]
 
-            if z_slices is not None and len(z_slices) == n_slices:
-                selected_z = z_slices
-            else:
-                active_z = np.where(np.nanmax(crop_stat0, axis=(0, 1)) > stat_min)[0]
-                if len(active_z) >= n_slices:
-                    indices = np.linspace(0, len(active_z) - 1, n_slices, dtype=int)
-                    selected_z = active_z[indices]
+            if not mip:
+                if z_slices is not None and len(z_slices) == n_slices:
+                    selected_z = z_slices
                 else:
-                    selected_z = np.linspace(0, crop_stat0.shape[2] - 1, n_slices, dtype=int)
+                    active_z = np.where(np.nanmax(crop_stat0, axis=(0, 1)) > stat_min)[0]
+                    if len(active_z) >= n_slices:
+                        indices = np.linspace(0, len(active_z) - 1, n_slices, dtype=int)
+                        selected_z = active_z[indices]
+                    else:
+                        selected_z = np.linspace(0, crop_stat0.shape[2] - 1, n_slices, dtype=int)
 
-            # --- Plot: col = map, row = slice ---
+            # --- Plot: col = map, row = slice (or single MIP row) ---
             for col, fname in enumerate(i_fnames):
                 stat_img = nib.as_closest_canonical(nib.load(fname))
                 statmap_data = stat_img.get_fdata()
                 crop_stat = statmap_data[x_min_axi:x_max_axi, y_min_axi:y_max_axi, :]
                 crop_tmpl = template_data[x_min_axi:x_max_axi, y_min_axi:y_max_axi, :]
+
+                if mip:
+                    z_mid = crop_tmpl.shape[2] // 2  # anatomical background only, not the overlay
+                    ax = fig.add_subplot(gs[0, col])
+
+                    tmpl_slice = crop_tmpl[:, :, z_mid].T
+                    ax.imshow(tmpl_slice, cmap="gray", origin="lower", aspect="equal")
+
+                    if underlay_fname is not None:
+                        underlay_slice = underlay_data[x_min_axi:x_max_axi, y_min_axi:y_max_axi, z_mid].T
+                        ax.imshow(underlay_slice, cmap="gray", origin="lower", aspect="auto", alpha=0.1)
+
+                    stat_mip = np.max(crop_stat, axis=2)
+                    stat_mip = np.where(stat_mip > stat_min, stat_mip, np.nan).T
+
+                    if np.nansum(stat_mip) > 0:
+                        ax.imshow(stat_mip, cmap=cmap, origin="lower",
+                                vmin=stat_min, vmax=stat_max, aspect="auto")
+
+                    ax.axis("off")
+
+                    ax.set_title(titles[col], color="black", fontweight='bold',
+                                fontsize=9, fontname="Arial")
+                    continue
 
                 for row, z in enumerate(selected_z):
                     ax = fig.add_subplot(gs[row, col])
