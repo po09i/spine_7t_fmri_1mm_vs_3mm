@@ -440,11 +440,6 @@ class Figures_main:
 
                     ax.axis("off")
 
-                    if col == 0:
-                        ax.text(0.02, 0.5, "L", transform=ax.transAxes, color="white", fontsize=7, ha="left", va="center")
-                        ax.text(0.98, 0.5, "R", transform=ax.transAxes, color="white", fontsize=7, ha="right", va="center")
-                        ax.text(0.5, 0.95, "A", transform=ax.transAxes, color="white", fontsize=7, ha="center", va="top")
-
                     ax.set_title(titles[col], color="black", fontweight='bold',
                                 fontsize=9, fontname="Arial")
                     continue
