@@ -127,10 +127,10 @@ class Figures_main:
                     # z indices into template/PAM50_t2.nii.gz as bundled in this repo, which
                     # is NOT the full official PAM50 template (982 z-slices) -- it's already
                     # cropped down to 441 z-slices (0.5mm), spanning PAM50 physical z = -286.8mm
-                    # (index 0) to -66.8mm (index 440). z=130-350 here is therefore z=-221.8mm
-                    # to -111.8mm in real PAM50 coordinates, i.e. roughly C3/C4 down to T2/T3 --
-                    # the cervical enlargement, consistent with the spinal_levels dict below
-                    # (C5: 300-333, T1: 172-206) -- not the lumbar cord.
+                    # (index 0) to -66.8mm (index 440). z=130-350 here is therefore PAM50
+                    # z=-221.8mm to -111.8mm. (Vertebral/spinal level at these coordinates is
+                    # not annotated here -- a prior hardcoded level table was removed as
+                    # unverified, see d134a3f.)
                     z_min, z_max = 130, 350
                     statmap_img = nib.as_closest_canonical(nib.load(i_fname))
                     statmap_data = statmap_img.get_fdata()
@@ -305,6 +305,9 @@ class Figures_main:
                 # extent (matching plot_first_level_maps) shows any suprathreshold signal
                 # regardless of where along that axis it falls.
                 x_min, x_max = 35, 105
+                # See plot_first_level_maps for the PAM50-cropping caveat: this indexes
+                # template/PAM50_t2.nii.gz's 441-slice (0.5mm) crop, not the full 982-slice
+                # PAM50 template. z=175-333 here is PAM50 z=-199.3mm to -120.3mm.
                 z_min, z_max = 175, 333
                 y_slice = 72  # anatomical background slice only
                 cor_slice = np.max(statmap_data[x_min:x_max, :, z_min:z_max], axis=1)
