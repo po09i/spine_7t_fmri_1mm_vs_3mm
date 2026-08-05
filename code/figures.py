@@ -124,6 +124,13 @@ class Figures_main:
                         continue
 
                     x_min, x_max = 35, 105
+                    # z indices into template/PAM50_t2.nii.gz as bundled in this repo, which
+                    # is NOT the full official PAM50 template (982 z-slices) -- it's already
+                    # cropped down to 441 z-slices (0.5mm), spanning PAM50 physical z = -286.8mm
+                    # (index 0) to -66.8mm (index 440). z=130-350 here is therefore z=-221.8mm
+                    # to -111.8mm in real PAM50 coordinates, i.e. roughly C3/C4 down to T2/T3 --
+                    # the cervical enlargement, consistent with the spinal_levels dict below
+                    # (C5: 300-333, T1: 172-206) -- not the lumbar cord.
                     z_min, z_max = 130, 350
                     statmap_img = nib.as_closest_canonical(nib.load(i_fname))
                     statmap_data = statmap_img.get_fdata()
