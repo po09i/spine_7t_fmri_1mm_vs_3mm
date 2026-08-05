@@ -236,7 +236,7 @@ class Figures_main:
 
             # Label sits above the colorbar (horizontal, not rotated) so it can't collide
             # with the last participant's title, regardless of figure width/subject count.
-            cbar.ax.text(0.5, 1.3, "z-score\n(uncorr)", fontsize=6, va="bottom", ha="center", transform=cbar.ax.transAxes)
+            cbar.ax.text(0.5, 1.3, "t-value\n(uncorr)", fontsize=6, va="bottom", ha="center", transform=cbar.ax.transAxes)
             cbar.ax.text(0.5, -0.1, f"{stat_min:.1f}", fontsize=6,va="center", ha="right", transform=cbar.ax.transAxes)
             cbar.ax.text(0.5, 1.1, f"{stat_max:.1f}", fontsize=6, va="center", ha="right", transform=cbar.ax.transAxes)
 
