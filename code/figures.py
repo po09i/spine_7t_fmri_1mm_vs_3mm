@@ -269,9 +269,9 @@ class Figures_main:
             fig.subplots_adjust(left=0.01, right=0.99, top=0.92, bottom=0.1)
 
             height_ratios = [6, 0.2]
-            gs = fig.add_gridspec(nrows=2, ncols=2 + n_maps,
+            gs = fig.add_gridspec(nrows=2, ncols=n_maps,
                                 height_ratios=height_ratios,
-                                width_ratios=[0.2, 0.1] + [1] * n_maps,
+                                width_ratios=[1] * n_maps,
                                 hspace=0.01, wspace=0.05)
 
             # --- Load template, mask, and underlay ---
@@ -304,7 +304,7 @@ class Figures_main:
                 cor_slice = np.where(cor_slice > stat_min, cor_slice, np.nan)
                 cor_slice = cor_slice.T
 
-                ax_cor = fig.add_subplot(gs[0, i+2])
+                ax_cor = fig.add_subplot(gs[0, i])
                 template_cor = template_data[x_min:x_max, y_slice, z_min:z_max].T
                 ax_cor.imshow(template_cor, cmap="gray", origin="lower", aspect="auto")
 
@@ -334,17 +334,6 @@ class Figures_main:
                 width=0.35 if n_maps == 2 else 0.44, 
                 height=0.02
                 )
-
-            # -- Spinal levels
-            ax_levels, ax_levels_txt = self.plot_spinal_levels(
-                fig=fig,
-                gs=gs,
-                ax_cor=ax_cor,
-                cor_slice_shape=cor_slice.shape,
-                z_min=z_min,
-                z_max=z_max,
-                n_maps=n_maps
-            )
 
             plt.savefig(output_fname, transparent=True, dpi=600)
             plt.close(fig)
@@ -485,69 +474,7 @@ class Figures_main:
 
         return output_fname
 
-    def plot_spinal_levels(self, fig, gs, ax_cor, cor_slice_shape, z_min, z_max,n_maps):
-        """
-        Plot spinal level color bands and segmental labels on a figure.
-
-        Parameters
-        ----------
-        fig : matplotlib.figure.Figure
-        gs : matplotlib.gridspec.GridSpec
-        ax_cor : matplotlib.axes.Axes
-            Coronal axis used as reference for text transforms
-        cor_slice_shape : tuple
-            Shape of the coronal slice (height, width) — used to init data array
-        z_min : int
-            Minimum z index of the coronal crop
-        z_max : int
-            Maximum z index of the coronal crop
-        """
-
-        spinal_levels = {
-            5: range(300, 333),  # C5
-            6: range(269, 300),  # C6
-            7: range(238, 269),  # C7
-            8: range(206, 238),  # C8
-            9: range(172, 206)   # T1
-        }
-
-        data_spinal_levels = np.zeros((cor_slice_shape[0], z_max - z_min))
-
-        for level, z_range in spinal_levels.items():
-            z_start = max(z_range.start, z_min)
-            z_end = min(z_range.stop, z_max)
-            if z_start >= z_end:
-                continue
-            z_inds = np.arange(z_start, z_end) - z_min
-            data_spinal_levels[:, z_inds] = level
-
-        data_spinal_alpha = np.zeros_like(data_spinal_levels, dtype=float)
-        data_spinal_alpha[data_spinal_levels > 0] = 1
-
-        data_spinal_levels_2 = np.copy(data_spinal_levels).astype(float)
-        data_spinal_levels_2[data_spinal_levels % 2 == 0] = 0.5
-        data_spinal_levels_2[data_spinal_levels % 2 == 1] = 0.75
-
-        # --- Color bands
-        ax_levels = fig.add_subplot(gs[0, 1])
-        ax_levels.axis("off")
-        ax_levels.imshow(data_spinal_levels_2.T, cmap="gray", vmin=0, vmax=1,
-                        alpha=data_spinal_alpha.T, origin='lower', aspect='auto')
-
-        # --- Segmental labels
-        ax_levels_txt = fig.add_subplot(gs[0, 0])
-        ax_levels_txt.axis("off")
-        x_pos = -1.3 if n_maps == 2 else -0.25
-
-        labels = [("C5", 0.88), ("C6", 0.67), ("C7", 0.475), ("C8", 0.285), ("T1", 0.10)]
-        for label, y_pos in labels:
-            ax_levels_txt.text(x_pos, y_pos, label, transform=ax_cor.transAxes,
-                            color="black", fontsize=8, ha="center", va="center",
-                            fontweight='bold', fontname="Arial")
-
-        return ax_levels, ax_levels_txt
-
-    def plot_colorbar(self, fig, stat_min, stat_max, cmap='autumn', 
+    def plot_colorbar(self, fig, stat_min, stat_max, cmap='autumn',
                   left=0.03, bottom=0.05, width=0.15, height=0.04,
                   label='t-value', fontsize=7.5):
         """
