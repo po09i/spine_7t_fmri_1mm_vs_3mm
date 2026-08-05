@@ -1363,33 +1363,6 @@ class EpiComparison:
         return slice_temp
 
 
-def template_slice_to_spinal_level(template_slice):
-    spinal_levels = {
-        0: range(435, 440),
-        1: range(420, 435),  # C1...
-        2: range(399, 420),
-        3: range(366, 399),
-        4: range(333, 366),
-        5: range(300, 333),
-        6: range(269, 300),
-        7: range(238, 269),
-        8: range(206, 238),
-        9: range(172, 206),
-        10: range(135, 172),
-        11: range(94, 135),
-        12: range(47, 94),
-        13: range(420, 47)
-    }
-    spinal_levels_to_label = {1: 'C1', 2: 'C2', 3: 'C3', 4: 'C4', 5: 'C5', 6: 'C6', 7: 'C7', 8: 'C8', 9: 'T1', 10: 'T2', 11: 'T3', 12: 'T4', 13: 'T5'}
-
-    data_spinal_levels = np.zeros((440,), dtype=int)
-    for level, range_ in spinal_levels.items():
-        for r in range_:
-            data_spinal_levels[r] = level
-
-    return data_spinal_levels[template_slice], spinal_levels_to_label.get(data_spinal_levels[template_slice], 'Unknown')
-
-
 def template_slice_to_vert_level(template_slice):
     vert_levels = {
         0: range(413, 440),
