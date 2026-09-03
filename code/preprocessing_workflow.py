@@ -656,7 +656,7 @@ for ID_nb, ID in enumerate(IDs):
     print("=========================================", flush=True)
 
 df = pd.DataFrame(acq_parameters)
-df_ordered = df[['ID', 'task', 'acq', 'run', 'EchoTime', 'RepetitionTime', 'FlipAngle', 'SliceThickness', 'SpacingBetweenSlices', 'NumberOfVolumes', 'BaseResolution', 'PartialFourier', 'ParallelReductionFactorInPlane', 'MultibandAccelerationFactor']]
+df_ordered = df[['ID', 'task', 'acq', 'run', 'EchoTime', 'RepetitionTime', 'FlipAngle', 'BandwidthRO', 'BandwidthPerPixelRO', 'BandwidthPerPixelPE', 'EchoSpacing', 'SliceThickness', 'SpacingBetweenSlices', 'NumberOfVolumes', 'BaseResolution', 'PartialFourier', 'ParallelReductionFactorInPlane', 'MultibandAccelerationFactor']]
 df_ordered.to_csv(os.path.join(preprocessing_dir.format("").split("sub")[0], "acquisition_parameters.csv"), index=False)
 
 # Print participant metrics
